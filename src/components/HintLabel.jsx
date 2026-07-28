@@ -50,7 +50,7 @@ function buildHintText(note, showHint) {
 
   if (note.isLandmark) {
     const desc = LANDMARK_DESC[note.id] ?? note.id;
-    return <>💡 Landmark — {desc}</>;
+    return <>💡 Landmark {note.id} ({desc})</>;
   }
 
   const lm = findNearestLandmark(note);
