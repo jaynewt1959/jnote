@@ -24,8 +24,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { getNextNote, recordAnswer, getProgress, reset } from '../modules/spacedRepetition.js';
 
-const FEEDBACK_MS  = 950;   // how long to show correct/wrong before advancing
-const AUDIO_LEAD   = 180;   // play next note audio this many ms before the visual
+const FEEDBACK_MS  = 730;   // how long to show correct/wrong before advancing
+const AUDIO_LEAD   = 200;   // play next note audio this many ms before the visual
 const LEVELUP_MS   = 1800;  // how long to show "Level X unlocked!" toast
 
 export function useDrillSession({ onNoteShown } = {}) {
