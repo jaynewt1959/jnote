@@ -12,65 +12,52 @@
  *   lowestOctave         — first octave to show (default 3, expands to 2 for bass)
  */
 
-// Piano layout within one octave (12 semitones)
-//   C  C# D  D# E  F  F# G  G# A  A# B
-const NOTE_NAMES  = ['C','D','E','F','G','A','B'];
+// White keys that have a black key after them (all except E and B)
+const HAS_SHARP = new Set(['C', 'D', 'F', 'G', 'A']);
 
-// Key dimensions sized so all 29 white keys (C2–C6) fit without scrolling.
-// Total white keys: 29. App shell max-width: 820px minus ~48px padding = ~772px.
-// 26px × 29 = 754px → fits comfortably.
-const WHITE_W = 26;
-const WHITE_H = 96;
-const BLACK_W = 16;
-const BLACK_H = 60;
+// Key dimensions: 35 white keys (A1–G6) × 22px = 770px → fits in 820px shell.
+const WHITE_W = 22;
+const WHITE_H = 90;
+const BLACK_W = 13;
+const BLACK_H = 57;
 
-// Positions of black keys relative to their octave's left edge (white key widths)
-// Within one octave: C=0, D=1, E=2, F=3, G=4, A=5, B=6 (white index)
-// Black key between C-D is at white_index 0 + offset
-const BLACK_OFFSETS = {
-  'C#': 0,   // after C
-  'D#': 1,   // after D
-  'F#': 3,   // after F
-  'G#': 4,   // after G
-  'A#': 5,   // after A
-};
-
-// Which octaves to show for white keys
-const OCTAVE_RANGE = [2, 3, 4, 5]; // C2 through B5, plus C6
+// Build the full ordered list of white keys from A1 to G6
+function buildWhiteKeyList() {
+  const keys = [];
+  // Partial octave 1: A1, B1
+  for (const name of ['A', 'B']) keys.push({ name, octave: 1 });
+  // Full octaves 2–5
+  for (const octave of [2, 3, 4, 5])
+    for (const name of ['C','D','E','F','G','A','B'])
+      keys.push({ name, octave });
+  // Partial octave 6: C6–G6
+  for (const name of ['C','D','E','F','G']) keys.push({ name, octave: 6 });
+  return keys;
+}
 
 export default function PianoKeyboard({ onNoteClick, feedback, activeNoteId }) {
-  // Total white keys: 7 per octave × 4 octaves + 1 (final C6)
-  const totalWhiteKeys = 7 * 4 + 1;
-  const totalWidth = totalWhiteKeys * WHITE_W;
+  const keyList    = buildWhiteKeyList();           // 35 white keys
+  const totalWidth = keyList.length * WHITE_W;
 
-  // Build key layout data
-  const whiteKeys = [];
+  const whiteKeys = keyList.map((k, i) => ({
+    ...k,
+    noteId: `${k.name}${k.octave}`,
+    x: i * WHITE_W,
+  }));
+
   const blackKeys = [];
-
-  let whiteIndex = 0;
-  for (const octave of OCTAVE_RANGE) {
-    for (const name of NOTE_NAMES) {
-      const noteId = `${name}${octave}`;
-      whiteKeys.push({ noteId, name, octave, x: whiteIndex * WHITE_W });
-      // Check if there's a black key after this white key
-      const blackName = Object.keys(BLACK_OFFSETS).find(bn =>
-        bn[0] === name && BLACK_OFFSETS[bn] === NOTE_NAMES.indexOf(name)
-      );
-      if (blackName) {
-        // Black key x: right of this white key minus half of black key width
-        const bx = whiteIndex * WHITE_W + WHITE_W - BLACK_W / 2;
-        const bNoteId = `${blackName[0]}#${octave}`;
-        blackKeys.push({ noteId: bNoteId, name: blackName, octave, x: bx });
-      }
-      whiteIndex++;
-    }
-  }
-  // Add final C6
-  const c6Id = 'C6';
-  whiteKeys.push({ noteId: c6Id, name: 'C', octave: 6, x: whiteIndex * WHITE_W });
+  whiteKeys.forEach((wk, i) => {
+    if (!HAS_SHARP.has(wk.name)) return;
+    blackKeys.push({
+      noteId: `${wk.name}#${wk.octave}`,
+      name:   `${wk.name}#`,
+      octave: wk.octave,
+      x:      i * WHITE_W + WHITE_W - BLACK_W / 2,
+    });
+  });
 
   // Determine which octave the active note is in (for subtle highlight)
-  const activeOctave = activeNoteId ? parseInt(activeNoteId.slice(-1)) : null;
+  const activeOctave = activeNoteId ? parseInt(activeNoteId.replace(/[^0-9]/g, '')) : null;
 
   function keyColor(noteId, isBlack) {
     if (!feedback) return null; // no override

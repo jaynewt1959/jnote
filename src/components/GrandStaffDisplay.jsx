@@ -15,7 +15,7 @@ import { NOTE_BY_ID } from '../modules/noteData.js';
 
 // ── Layout constants ─────────────────────────────────────────────────────
 const WIDTH        = 460;
-const HEIGHT       = 230;
+const HEIGHT       = 280;  // extra height for 4 ledger lines above/below
 const START_X      = 40;   // left margin (brace needs ~40px)
 const NOTE_COLOR   = '#2563eb';  // blue for target note
 const REST_PITCH   = 'B4';       // nominal pitch VexFlow uses for rests (ignored)

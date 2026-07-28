@@ -34,7 +34,7 @@ export const NOTES = [
   // ── Level 6: Ledger lines above treble ──────────────────────────────────
   { id: 'A5', name: 'A', octave: 5, clef: 'treble', level: 6, vexKey: 'a/5', toneNote: 'A5', isLandmark: false },
   { id: 'B5', name: 'B', octave: 5, clef: 'treble', level: 6, vexKey: 'b/5', toneNote: 'B5', isLandmark: false },
-  { id: 'C6', name: 'C', octave: 6, clef: 'treble', level: 6, vexKey: 'c/6', toneNote: 'C6', isLandmark: false },
+  { id: 'C6', name: 'C', octave: 6, clef: 'treble', level: 6, vexKey: 'c/6', toneNote: 'C6', isLandmark: true },
 
   // ── Level 7: Staff bridge + first bass note ─────────────────────────────
   // B3 sits just below the treble staff (no ledger line needed)
@@ -58,7 +58,19 @@ export const NOTES = [
   { id: 'F2', name: 'F', octave: 2, clef: 'bass', level: 10, vexKey: 'f/2', toneNote: 'F2', isLandmark: false },
   { id: 'E2', name: 'E', octave: 2, clef: 'bass', level: 10, vexKey: 'e/2', toneNote: 'E2', isLandmark: false },
   { id: 'D2', name: 'D', octave: 2, clef: 'bass', level: 10, vexKey: 'd/2', toneNote: 'D2', isLandmark: false },
-  { id: 'C2', name: 'C', octave: 2, clef: 'bass', level: 10, vexKey: 'c/2', toneNote: 'C2', isLandmark: false },
+  { id: 'C2', name: 'C', octave: 2, clef: 'bass', level: 10, vexKey: 'c/2', toneNote: 'C2', isLandmark: true },
+
+  // ── Level 11: 3rd ledger lines above treble + below bass ────────────────
+  { id: 'D6', name: 'D', octave: 6, clef: 'treble', level: 11, vexKey: 'd/6', toneNote: 'D6', isLandmark: false },
+  { id: 'E6', name: 'E', octave: 6, clef: 'treble', level: 11, vexKey: 'e/6', toneNote: 'E6', isLandmark: false },
+  { id: 'B1', name: 'B', octave: 1, clef: 'bass',   level: 11, vexKey: 'b/1', toneNote: 'B1', isLandmark: false },
+  { id: 'A1', name: 'A', octave: 1, clef: 'bass',   level: 11, vexKey: 'a/1', toneNote: 'A1', isLandmark: false },
+
+  // ── Level 12: 4th ledger lines above treble + below bass ────────────────
+  { id: 'F6', name: 'F', octave: 6, clef: 'treble', level: 12, vexKey: 'f/6', toneNote: 'F6', isLandmark: false },
+  { id: 'G6', name: 'G', octave: 6, clef: 'treble', level: 12, vexKey: 'g/6', toneNote: 'G6', isLandmark: false },
+  { id: 'G1', name: 'G', octave: 1, clef: 'bass',   level: 12, vexKey: 'g/1', toneNote: 'G1', isLandmark: false },
+  { id: 'F1', name: 'F', octave: 1, clef: 'bass',   level: 12, vexKey: 'f/1', toneNote: 'F1', isLandmark: false },
 ];
 
 /** Lookup map: noteId → note object */
@@ -73,7 +85,7 @@ export function getNotesForLevel(level) {
  * The maximum level defined in the curriculum.
  * After completion, the phase-2 (accidentals) flag is set.
  */
-export const MAX_LEVEL = 10;
+export const MAX_LEVEL = 12;
 
 /**
  * Returns the nearest landmark note to the given note (by staff position),

@@ -23,9 +23,11 @@ const LANDMARK_DESC = {
   B4: 'B · treble middle line',
   C5: 'C · treble space 3 (high C)',
   F5: 'F · treble top line (line 5)',
+  C6: 'C · 2nd ledger line above treble',
   A3: 'A · bass top line (line 5)',
   F3: 'F · bass line 4 (where the two dots sit)',
   G2: 'G · bass bottom line (line 1)',
+  C2: 'C · 2nd ledger line below bass',
 };
 
 function findNearestLandmark(note) {
