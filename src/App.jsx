@@ -52,7 +52,10 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [handleAnswer]);
 
-  const kbFeedback  = feedback ? { noteId: feedback.noteId, correct: feedback.correct } : null;
+  // Always highlight the correct note's key on the keyboard (green = right, red = wrong).
+  // This works whether the answer came from a letter button or a piano key click,
+  // and reinforces where each note lives on the keyboard.
+  const kbFeedback  = feedback ? { noteId: currentNote?.id, correct: feedback.correct } : null;
   const btnFeedback = feedback ? { noteLetter: feedback.noteLetter, correct: feedback.correct } : null;
 
   function handleReset() {
