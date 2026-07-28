@@ -16,18 +16,18 @@ function diatonicPos(note) {
   return note.octave * 7 + LETTER_INDEX[note.name];
 }
 
-// Short descriptions of each landmark note for the hint text
+// Concise landmark descriptions — short enough to stay on one line
 const LANDMARK_DESC = {
-  C4: 'Middle C · ledger line between staves',
-  G4: 'G · treble line 2 (where the clef curls)',
-  B4: 'B · treble middle line',
-  C5: 'C · treble space 3 (high C)',
-  F5: 'F · treble top line (line 5)',
-  C6: 'C · 2nd ledger line above treble',
-  A3: 'A · bass top line (line 5)',
-  F3: 'F · bass line 4 (where the two dots sit)',
-  G2: 'G · bass bottom line (line 1)',
-  C2: 'C · 2nd ledger line below bass',
+  C4: 'Middle C',
+  G4: 'treble line 2',
+  B4: 'treble middle line',
+  C5: 'treble space 3',
+  F5: 'treble top line',
+  C6: '2nd ledger above treble',
+  A3: 'bass top line',
+  F3: 'bass line 4',
+  G2: 'bass bottom line',
+  C2: '2nd ledger below bass',
 };
 
 function findNearestLandmark(note) {
@@ -40,40 +40,26 @@ function findNearestLandmark(note) {
 }
 
 export default function HintLabel({ note, showHint }) {
-  if (!showHint || !note) return <div style={{ height: 28 }} />;
+  // Always render a fixed-height container so nothing above/below shifts
+  const inner = buildHintText(note, showHint);
+  return <div className="hint-label">{inner}</div>;
+}
 
-  // If the quiz note itself is a landmark, say so — don't compare it to another landmark
+function buildHintText(note, showHint) {
+  if (!showHint || !note) return null;
+
   if (note.isLandmark) {
     const desc = LANDMARK_DESC[note.id] ?? note.id;
-    return (
-      <div style={{ height: 28, display: 'flex', alignItems: 'center',
-        justifyContent: 'center', fontSize: 12, color: '#64748b', fontStyle: 'italic' }}>
-        💡 This note IS a landmark — {desc}
-      </div>
-    );
+    return <>💡 Landmark — {desc}</>;
   }
 
   const lm = findNearestLandmark(note);
-  if (!lm) return <div style={{ height: 28 }} />;
+  if (!lm) return null;
 
-  const diff  = diatonicPos(note) - diatonicPos(lm);
-  const steps = Math.abs(diff);
-  const dir   = diff > 0 ? 'above' : 'below';
-  const desc  = LANDMARK_DESC[lm.id] ?? lm.id;
+  const diff     = diatonicPos(note) - diatonicPos(lm);
+  const steps    = Math.abs(diff);
+  const dir      = diff > 0 ? 'above' : 'below';
+  const desc     = LANDMARK_DESC[lm.id] ?? lm.id;
   const stepWord = steps === 1 ? '1 step' : `${steps} steps`;
-  const text = `${stepWord} ${dir} landmark ${lm.id} · ${desc}`;
-
-  return (
-    <div style={{
-      height:        28,
-      display:       'flex',
-      alignItems:    'center',
-      justifyContent:'center',
-      fontSize:      12,
-      color:         '#64748b',
-      fontStyle:     'italic',
-    }}>
-      💡 {text}
-    </div>
-  );
+  return <>💡 {stepWord} {dir} {lm.id} ({desc})</>;
 }

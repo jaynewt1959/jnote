@@ -89,6 +89,23 @@ body {
   letter-spacing: 0.02em;
 }
 
+/* Fixed-height hint label — never causes layout shift.
+   Negative margin-top cancels the flex gap above it so it sits
+   snugly below the staff without altering anything else. */
+.hint-label {
+  height:          22px;
+  margin-top:      -8px;  /* absorb half the flex gap */
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  font-size:       12px;
+  color:           #64748b;
+  font-style:      italic;
+  white-space:     nowrap;
+  overflow:        hidden;
+  text-overflow:   ellipsis;
+}
+
 .controls-section {
   display: flex;
   gap: 10px;

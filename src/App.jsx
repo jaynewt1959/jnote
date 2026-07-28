@@ -77,8 +77,9 @@ export default function App() {
 
       <section className="staff-section">
         <GrandStaffDisplay noteId={currentNote?.id} />
-        <HintLabel note={currentNote} showHint={showHint} />
       </section>
+
+      <HintLabel note={currentNote} showHint={showHint} />
 
       <section className="feedback-section">
         <FeedbackBanner feedback={feedback} correctNote={currentNote} />
