@@ -40,7 +40,7 @@ export const NOTES = [
   // B3 sits just below the treble staff (no ledger line needed)
   // A3 is the top line of the bass staff
   { id: 'B3', name: 'B', octave: 3, clef: 'bass', level: 7, vexKey: 'b/3', toneNote: 'B3', isLandmark: false },
-  { id: 'A3', name: 'A', octave: 3, clef: 'bass', level: 7, vexKey: 'a/3', toneNote: 'A3', isLandmark: false },
+  { id: 'A3', name: 'A', octave: 3, clef: 'bass', level: 7, vexKey: 'a/3', toneNote: 'A3', isLandmark: true },
 
   // ── Level 8: Bass F landmark region ─────────────────────────────────────
   { id: 'G3', name: 'G', octave: 3, clef: 'bass', level: 8, vexKey: 'g/3', toneNote: 'G3', isLandmark: false },
@@ -54,7 +54,7 @@ export const NOTES = [
 
   // ── Level 10: Bass bottom + ledger lines below ───────────────────────────
   { id: 'A2', name: 'A', octave: 2, clef: 'bass', level: 10, vexKey: 'a/2', toneNote: 'A2', isLandmark: false },
-  { id: 'G2', name: 'G', octave: 2, clef: 'bass', level: 10, vexKey: 'g/2', toneNote: 'G2', isLandmark: false },
+  { id: 'G2', name: 'G', octave: 2, clef: 'bass', level: 10, vexKey: 'g/2', toneNote: 'G2', isLandmark: true },
   { id: 'F2', name: 'F', octave: 2, clef: 'bass', level: 10, vexKey: 'f/2', toneNote: 'F2', isLandmark: false },
   { id: 'E2', name: 'E', octave: 2, clef: 'bass', level: 10, vexKey: 'e/2', toneNote: 'E2', isLandmark: false },
   { id: 'D2', name: 'D', octave: 2, clef: 'bass', level: 10, vexKey: 'd/2', toneNote: 'D2', isLandmark: false },
