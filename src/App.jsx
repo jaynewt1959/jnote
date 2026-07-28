@@ -11,6 +11,8 @@ import LevelProgress     from "./components/LevelProgress.jsx";
 import { useDrillSession } from "./hooks/useDrillSession.js";
 import { useAudio }        from "./hooks/useAudio.js";
 import HintLabel           from "./components/HintLabel.jsx";
+import StatsBar            from "./components/StatsBar.jsx";
+import { getStats }        from "./modules/spacedRepetition.js";
 
 export default function App() {
   const [showHint, setShowHint] = useState(false);
@@ -53,9 +55,10 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [handleAnswer]);
 
-  // Always highlight the correct note's key on the keyboard (green = right, red = wrong).
-  // This works whether the answer came from a letter button or a piano key click,
-  // and reinforces where each note lives on the keyboard.
+  // Re-read stats after every answer (progress triggers re-render on each answer)
+  const stats = getStats();
+
+  // Always highlight the correct note's key (works for letter-button and keyboard answers)
   const kbFeedback  = feedback ? { noteId: currentNote?.id, correct: feedback.correct } : null;
   const btnFeedback = feedback ? { noteLetter: feedback.noteLetter, correct: feedback.correct } : null;
 
@@ -83,6 +86,7 @@ export default function App() {
 
       <section className="progress-section">
         <LevelProgress progress={progress} />
+        <StatsBar stats={stats} />
       </section>
 
       <section className="keyboard-section">

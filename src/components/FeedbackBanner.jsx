@@ -10,7 +10,8 @@ export default function FeedbackBanner({ feedback, correctNote }) {
     return <div style={{ height: 44 }} />;
   }
 
-  const { correct, noteLetter } = feedback;
+  const { correct, noteLetter, reactionMs } = feedback;
+  const rtLabel = reactionMs ? ` · ${(reactionMs / 1000).toFixed(1)}s` : '';
 
   return (
     <div
@@ -19,9 +20,7 @@ export default function FeedbackBanner({ feedback, correctNote }) {
         display:       'flex',
         alignItems:    'center',
         justifyContent:'center',
-        gap:           8,
-        fontSize:      22,
-        fontWeight:    700,
+        gap:           6,
         borderRadius:  8,
         background:    correct ? '#dcfce7' : '#fee2e2',
         color:         correct ? '#15803d' : '#b91c1c',
@@ -30,11 +29,12 @@ export default function FeedbackBanner({ feedback, correctNote }) {
         userSelect:    'none',
       }}
     >
-      {correct ? (
-        <>✓ {noteLetter}</>
-      ) : (
-        <>✗ &nbsp; that was {correctNote?.name ?? ''}</>
-      )}
+      <span style={{ fontSize: 22, fontWeight: 700 }}>
+        {correct ? `✓ ${noteLetter}` : `✗ — that was ${correctNote?.name ?? ''}`}
+      </span>
+      <span style={{ fontSize: 13, fontWeight: 400, opacity: 0.75 }}>
+        {rtLabel}
+      </span>
     </div>
   );
 }

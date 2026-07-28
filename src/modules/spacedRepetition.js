@@ -27,7 +27,8 @@ function defaultState() {
   return {
     currentLevel: 1,
     noteStates: {},   // noteId → { score, attempts }
-    completedAt: null // ISO string when all levels done
+    rtLog:       [],  // { noteId, ms, correct, ts }[] — capped at 500
+    completedAt: null
   };
 }
 
@@ -181,4 +182,43 @@ export function reset() {
  */
 export function getNoteScore(noteId) {
   return _state.noteStates[noteId]?.score ?? 0;
+}
+
+/**
+ * Record a reaction time entry.
+ * @param {string}  noteId
+ * @param {number}  ms       milliseconds from note display to answer
+ * @param {boolean} correct
+ */
+export function recordRT(noteId, ms, correct) {
+  if (!ms || ms <= 0 || ms > 30000) return; // ignore implausible values
+  if (!_state.rtLog) _state.rtLog = [];
+  _state.rtLog.push({ noteId, ms, correct, ts: new Date().toISOString() });
+  if (_state.rtLog.length > 500) _state.rtLog = _state.rtLog.slice(-500);
+  saveState(_state);
+}
+
+/**
+ * Return reaction-time statistics.
+ * Only counts correct answers under 15 s (excludes distraction pauses).
+ *
+ * @returns {{
+ *   count:         number,   total correct answers recorded
+ *   avgMs:         number,   rolling avg of last 10
+ *   improvementMs: number|null  positive = faster than prior 10
+ * } | null}  null if fewer than 3 correct answers recorded
+ */
+export function getStats() {
+  const log = (_state.rtLog ?? []).filter(r => r.correct && r.ms < 15000);
+  if (log.length < 3) return null;
+
+  const avg = arr => Math.round(arr.reduce((a, b) => a + b, 0) / arr.length);
+  const recent  = log.slice(-10).map(r => r.ms);
+  const prior   = log.slice(-20, -10).map(r => r.ms);
+
+  return {
+    count:         log.length,
+    avgMs:         avg(recent),
+    improvementMs: prior.length >= 5 ? avg(prior) - avg(recent) : null,
+  };
 }

@@ -22,7 +22,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { getNextNote, recordAnswer, getProgress, reset } from '../modules/spacedRepetition.js';
+import { getNextNote, recordAnswer, getProgress, reset, recordRT } from '../modules/spacedRepetition.js';
 
 const FEEDBACK_MS  = 730;   // how long to show correct/wrong before advancing
 const AUDIO_LEAD   = 200;   // play next note audio this many ms before the visual
@@ -35,11 +35,13 @@ export function useDrillSession({ onNoteShown } = {}) {
   const [levelUpMsg,  setLevelUpMsg]    = useState(null);
 
   // Track the last shown noteId to avoid immediate repeats
-  const lastNoteId  = useRef(null);
+  const lastNoteId    = useRef(null);
   // Pre-picked next note so audio and visual use the same note
-  const pendingNote = useRef(null);
+  const pendingNote   = useRef(null);
   // Guard: don't accept new answers while showing feedback
-  const locked = useRef(false);
+  const locked        = useRef(false);
+  // Timestamp when current note was displayed (for reaction-time measurement)
+  const noteStartTime = useRef(null);
 
   // Show the next note (uses pre-picked note if available).
   // audioAlreadyPlayed: true when submitAnswer already fired onNoteShown via the lead timer.
@@ -50,6 +52,7 @@ export function useDrillSession({ onNoteShown } = {}) {
     setCurrentNote(note);
     setFeedback(null);
     locked.current = false;
+    noteStartTime.current = Date.now(); // start reaction-time clock
     if (!audioAlreadyPlayed && onNoteShown) onNoteShown(note);
   }, [onNoteShown]);
 
@@ -74,10 +77,12 @@ export function useDrillSession({ onNoteShown } = {}) {
       : answer.replace(/[^A-G]/g, '')[0]?.toUpperCase() ?? '';
 
     const correct = answerLetter === currentNote.name;
+    const reactionMs = noteStartTime.current ? Date.now() - noteStartTime.current : null;
 
-    setFeedback({ correct, noteLetter: answerLetter, noteId: answer });
+    setFeedback({ correct, noteLetter: answerLetter, noteId: answer, reactionMs });
 
     // Record in SR engine
+    if (reactionMs) recordRT(currentNote.id, reactionMs, correct);
     const { leveledUp, newLevel } = recordAnswer(currentNote.id, correct);
     setProgress(getProgress());
 
