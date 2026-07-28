@@ -39,21 +39,26 @@ function findNearestLandmark(note) {
 export default function HintLabel({ note, showHint }) {
   if (!showHint || !note) return <div style={{ height: 28 }} />;
 
+  // If the quiz note itself is a landmark, say so — don't compare it to another landmark
+  if (note.isLandmark) {
+    const desc = LANDMARK_DESC[note.id] ?? note.id;
+    return (
+      <div style={{ height: 28, display: 'flex', alignItems: 'center',
+        justifyContent: 'center', fontSize: 12, color: '#64748b', fontStyle: 'italic' }}>
+        💡 This note IS a landmark — {desc}
+      </div>
+    );
+  }
+
   const lm = findNearestLandmark(note);
   if (!lm) return <div style={{ height: 28 }} />;
 
   const diff  = diatonicPos(note) - diatonicPos(lm);
   const steps = Math.abs(diff);
-  const dir   = diff > 0 ? 'above' : diff < 0 ? 'below' : null;
+  const dir   = diff > 0 ? 'above' : 'below';
   const desc  = LANDMARK_DESC[lm.id] ?? lm.id;
-
-  let text;
-  if (diff === 0) {
-    text = `This note IS a landmark — ${desc}`;
-  } else {
-    const stepWord = steps === 1 ? '1 step' : `${steps} steps`;
-    text = `${stepWord} ${dir} landmark ${lm.id} · ${desc}`;
-  }
+  const stepWord = steps === 1 ? '1 step' : `${steps} steps`;
+  const text = `${stepWord} ${dir} landmark ${lm.id} · ${desc}`;
 
   return (
     <div style={{
