@@ -22,6 +22,7 @@ const LANDMARK_DESC = {
   G4: 'G · treble line 2 (where the clef curls)',
   B4: 'B · treble middle line',
   C5: 'C · treble space 3 (high C)',
+  F5: 'F · treble top line (line 5)',
   A3: 'A · bass top line (line 5)',
   F3: 'F · bass line 4 (where the two dots sit)',
   G2: 'G · bass bottom line (line 1)',

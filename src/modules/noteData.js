@@ -28,7 +28,7 @@ export const NOTES = [
 
   // ── Level 5: Upper treble + first ledger line above ─────────────────────
   { id: 'E5', name: 'E', octave: 5, clef: 'treble', level: 5, vexKey: 'e/5', toneNote: 'E5', isLandmark: false },
-  { id: 'F5', name: 'F', octave: 5, clef: 'treble', level: 5, vexKey: 'f/5', toneNote: 'F5', isLandmark: false },
+  { id: 'F5', name: 'F', octave: 5, clef: 'treble', level: 5, vexKey: 'f/5', toneNote: 'F5', isLandmark: true },
   { id: 'G5', name: 'G', octave: 5, clef: 'treble', level: 5, vexKey: 'g/5', toneNote: 'G5', isLandmark: false },
 
   // ── Level 6: Ledger lines above treble ──────────────────────────────────
