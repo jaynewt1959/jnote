@@ -1,11 +1,8 @@
 /**
  * useAudio.js
  *
- * Hook that wraps the audio engine, managing enabled state and lazy init.
- * The first call to play() after the user enables audio triggers loading.
- *
- * Returns:
- *   { audioEnabled, toggleAudio, play(toneNote) }
+ * Thin wrapper around the Web Audio API engine.
+ * All calls are synchronous — no async/await.
  */
 
 import { useState, useCallback } from 'react';
@@ -15,20 +12,19 @@ export function useAudio() {
   const [audioEnabled, setAudioEnabled] = useState(true);
 
   /**
-   * Call from any user-gesture handler to unlock Safari audio.
-   * Must be called synchronously (no await) inside onClick/onMouseDown.
+   * Call SYNCHRONOUSLY inside any click/keydown handler.
+   * Resumes AudioContext within the user gesture (Safari requirement).
    */
   const initFromGesture = useCallback(() => {
     if (audioEnabled) touchAudio();
   }, [audioEnabled]);
 
   /**
-   * Play a note. Call this after (or alongside) initFromGesture.
-   * Works from setTimeout once context is unlocked.
+   * Play a note. Safe to call from setTimeout once context is running.
    */
-  const play = useCallback((toneNote) => {
-    if (!audioEnabled || !toneNote) return;
-    playNote(toneNote);
+  const play = useCallback((noteId) => {
+    if (!audioEnabled || !noteId) return;
+    playNote(noteId);
   }, [audioEnabled]);
 
   const toggleAudio = useCallback(() => {

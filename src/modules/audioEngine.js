@@ -1,105 +1,107 @@
 /**
  * audioEngine.js
  *
- * Wraps Tone.js Sampler with Salamander Grand Piano samples.
- * Lazy-initialises on first user gesture (Web Audio policy requirement).
+ * Pure Web Audio API piano-like synthesiser.
+ * No external dependencies, no CDN loading — works immediately in all browsers
+ * including Safari.
  *
  * Usage:
- *   import { initAudio, playNote } from './audioEngine.js';
- *   await initAudio();   // call once after a user gesture
- *   playNote('C4');      // play anytime after init
+ *   touchAudio()   — call SYNCHRONOUSLY inside a click/keydown handler
+ *   playNote('C4') — call any time after touchAudio()
  */
 
-import * as Tone from 'tone';
+// ── Note frequency table ────────────────────────────────────────────────
+// MIDI number: C4 = 60, A4 = 69 (= 440 Hz)
+// Semitone offsets from C within an octave
+const SEMITONES = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
 
-// Salamander Grand Piano samples hosted by Tone.js team
-const BASE_URL = 'https://tonejs.github.io/audio/salamander/';
+function noteToFreq(noteId) {
+  // noteId format: 'C4', 'G3', 'A5', etc.
+  const letter = noteId[0];
+  const octave = parseInt(noteId.slice(-1), 10);
+  const midi = (octave + 1) * 12 + (SEMITONES[letter] ?? 0);
+  return 440 * Math.pow(2, (midi - 69) / 12);
+}
 
-// We load only the notes we need (every major 3rd across the piano range)
-// to keep the load time manageable. Tone.Sampler interpolates between them.
-const SAMPLE_URLS = {
-  A0:  'A0.[mp3|ogg]',
-  C1:  'C1.[mp3|ogg]',
-  'D#1': 'Ds1.[mp3|ogg]',
-  'F#1': 'Fs1.[mp3|ogg]',
-  A1:  'A1.[mp3|ogg]',
-  C2:  'C2.[mp3|ogg]',
-  'D#2': 'Ds2.[mp3|ogg]',
-  'F#2': 'Fs2.[mp3|ogg]',
-  A2:  'A2.[mp3|ogg]',
-  C3:  'C3.[mp3|ogg]',
-  'D#3': 'Ds3.[mp3|ogg]',
-  'F#3': 'Fs3.[mp3|ogg]',
-  A3:  'A3.[mp3|ogg]',
-  C4:  'C4.[mp3|ogg]',
-  'D#4': 'Ds4.[mp3|ogg]',
-  'F#4': 'Fs4.[mp3|ogg]',
-  A4:  'A4.[mp3|ogg]',
-  C5:  'C5.[mp3|ogg]',
-  'D#5': 'Ds5.[mp3|ogg]',
-  'F#5': 'Fs5.[mp3|ogg]',
-  A5:  'A5.[mp3|ogg]',
-  C6:  'C6.[mp3|ogg]',
-};
+// ── AudioContext singleton ───────────────────────────────────────────────
+let ctx = null;
 
-let sampler = null;
-let samplerReady = false;
-let samplerLoading = false;
+function getCtx() {
+  if (!ctx) {
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  return ctx;
+}
 
 /**
- * Call this SYNCHRONOUSLY inside every user-gesture handler (click/keydown).
- * It calls AudioContext.resume() within the gesture so Safari unlocks audio.
- * Also kicks off the sampler CDN download if not already started.
- * Safe to call repeatedly — idempotent after first call.
+ * Call this SYNCHRONOUSLY inside every click/keydown handler.
+ * Resumes the AudioContext within the user gesture so Safari unlocks audio.
+ * Safe to call repeatedly.
  */
 export function touchAudio() {
-  // Resume the AudioContext synchronously within the gesture (Safari requirement)
-  Tone.start().catch(() => {}); // fire-and-forget; do NOT await
-
-  // Kick off sampler loading if not already started
-  if (!samplerReady && !samplerLoading) {
-    _loadSampler();
-  }
-}
-
-async function _loadSampler() {
-  samplerLoading = true;
   try {
-    // Wait for context to be running before creating the sampler
-    await Tone.start();
-    sampler = new Tone.Sampler({
-      urls:    SAMPLE_URLS,
-      release: 1.2,
-      baseUrl: BASE_URL,
-      onload:  () => { samplerReady = true; samplerLoading = false; },
-    }).toDestination();
-  } catch (err) {
-    console.warn('Audio sampler load failed:', err);
-    samplerLoading = false;
+    const c = getCtx();
+    if (c.state === 'suspended') {
+      c.resume(); // synchronous call within gesture — Safari requirement
+    }
+  } catch (e) {
+    // AudioContext not available (e.g. server-side render)
   }
-}
-
-/** @deprecated use touchAudio() instead */
-export async function initAudio() {
-  touchAudio();
 }
 
 /**
- * Play a note (e.g. "C4", "G#3").
- * No-ops if audio is not yet initialised.
+ * Play a piano-like tone for the given note.
+ * Uses two detuned oscillators + sharp attack/exponential decay envelope.
  *
- * @param {string} toneNote  Tone.js note string
- * @param {string} duration  Tone.js duration string (default '2n')
+ * @param {string} noteId  e.g. 'C4', 'G3'
  */
-export function playNote(toneNote, duration = '2n') {
-  if (!sampler || !samplerReady) return;
+export function playNote(noteId) {
   try {
-    sampler.triggerAttackRelease(toneNote, duration);
+    const c = getCtx();
+    if (c.state === 'suspended') return; // not yet unlocked
+
+    const freq = noteToFreq(noteId);
+    const now  = c.currentTime;
+
+    // Master gain for this note
+    const masterGain = c.createGain();
+    masterGain.gain.setValueAtTime(0, now);
+    masterGain.gain.linearRampToValueAtTime(0.45, now + 0.008);  // fast attack
+    masterGain.gain.exponentialRampToValueAtTime(0.18, now + 0.15); // decay
+    masterGain.gain.exponentialRampToValueAtTime(0.001, now + 1.8); // release
+    masterGain.connect(c.destination);
+
+    // Lowpass filter to soften the tone
+    const filter = c.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(3200, now);
+    filter.frequency.exponentialRampToValueAtTime(1200, now + 0.3);
+    filter.connect(masterGain);
+
+    // Oscillator 1: fundamental (triangle — softer, piano-like)
+    const osc1 = c.createOscillator();
+    osc1.type = 'triangle';
+    osc1.frequency.setValueAtTime(freq, now);
+    osc1.connect(filter);
+    osc1.start(now);
+    osc1.stop(now + 1.9);
+
+    // Oscillator 2: 2nd harmonic, quieter (adds presence)
+    const g2 = c.createGain();
+    g2.gain.setValueAtTime(0.15, now);
+    g2.connect(filter);
+    const osc2 = c.createOscillator();
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(freq * 2, now);
+    osc2.connect(g2);
+    osc2.start(now);
+    osc2.stop(now + 1.0);
+
   } catch (err) {
     console.warn('playNote error:', err);
   }
 }
 
 export function isAudioReady() {
-  return samplerReady;
+  return ctx !== null && ctx.state === 'running';
 }
