@@ -10,8 +10,8 @@ export default function FeedbackBanner({ feedback, correctNote }) {
     return <div style={{ height: 44 }} />;
   }
 
-  const { correct, noteLetter, reactionMs } = feedback;
-  const rtLabel = reactionMs ? ` · ${(reactionMs / 1000).toFixed(1)}s` : '';
+  const { correct, noteLetter, reactionMs, isWander } = feedback;
+  const rtLabel = isWander ? ' · —' : reactionMs ? ` · ${(reactionMs / 1000).toFixed(1)}s` : '';
 
   return (
     <div

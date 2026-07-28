@@ -27,6 +27,7 @@ import { getNextNote, recordAnswer, getProgress, reset, recordRT } from '../modu
 const FEEDBACK_MS  = 730;   // how long to show correct/wrong before advancing
 const AUDIO_LEAD   = 200;   // play next note audio this many ms before the visual
 const LEVELUP_MS   = 1800;  // how long to show "Level X unlocked!" toast
+const WANDER_MS    = 8000;  // RTs beyond this are attention-wandered; skip RT recording
 
 export function useDrillSession({ onNoteShown } = {}) {
   const [currentNote, setCurrentNote]   = useState(null);
@@ -78,11 +79,14 @@ export function useDrillSession({ onNoteShown } = {}) {
 
     const correct = answerLetter === currentNote.name;
     const reactionMs = noteStartTime.current ? Date.now() - noteStartTime.current : null;
+    // If the user's attention wandered (RT too long), discard the RT so it
+    // doesn't pollute stats. SR score still records — the answer still counts.
+    const isWander = reactionMs !== null && reactionMs > WANDER_MS;
 
-    setFeedback({ correct, noteLetter: answerLetter, noteId: answer, reactionMs });
+    setFeedback({ correct, noteLetter: answerLetter, noteId: answer, reactionMs, isWander });
 
-    // Record in SR engine
-    if (reactionMs) recordRT(currentNote.id, reactionMs, correct);
+    // Record in SR engine (always); only record RT when attention was present
+    if (reactionMs && !isWander) recordRT(currentNote.id, reactionMs, correct);
     const { leveledUp, newLevel } = recordAnswer(currentNote.id, correct);
     setProgress(getProgress());
 
