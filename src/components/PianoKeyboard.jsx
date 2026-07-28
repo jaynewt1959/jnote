@@ -12,17 +12,17 @@
  *   lowestOctave         — first octave to show (default 3, expands to 2 for bass)
  */
 
-import { useEffect, useRef } from 'react';
-
 // Piano layout within one octave (12 semitones)
 //   C  C# D  D# E  F  F# G  G# A  A# B
 const NOTE_NAMES  = ['C','D','E','F','G','A','B'];
 
-// White key dimensions
-const WHITE_W = 36;
-const WHITE_H = 120;
-const BLACK_W = 22;
-const BLACK_H = 76;
+// Key dimensions sized so all 29 white keys (C2–C6) fit without scrolling.
+// Total white keys: 29. App shell max-width: 820px minus ~48px padding = ~772px.
+// 26px × 29 = 754px → fits comfortably.
+const WHITE_W = 26;
+const WHITE_H = 96;
+const BLACK_W = 16;
+const BLACK_H = 60;
 
 // Positions of black keys relative to their octave's left edge (white key widths)
 // Within one octave: C=0, D=1, E=2, F=3, G=4, A=5, B=6 (white index)
@@ -71,16 +71,6 @@ export default function PianoKeyboard({ onNoteClick, feedback, activeNoteId }) {
 
   // Determine which octave the active note is in (for subtle highlight)
   const activeOctave = activeNoteId ? parseInt(activeNoteId.slice(-1)) : null;
-
-  // Scroll the container to keep active note visible
-  const scrollRef = useRef(null);
-  useEffect(() => {
-    if (!activeNoteId || !scrollRef.current) return;
-    const activeKey = scrollRef.current.querySelector(`[data-note="${activeNoteId}"]`);
-    if (activeKey) {
-      activeKey.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
-    }
-  }, [activeNoteId]);
 
   function keyColor(noteId, isBlack) {
     if (!feedback) return null; // no override
@@ -144,9 +134,8 @@ export default function PianoKeyboard({ onNoteClick, feedback, activeNoteId }) {
   }
 
   return (
-    <div style={{ overflowX: 'auto', width: '100%', paddingBottom: 8 }}>
+    <div style={{ width: '100%', paddingBottom: 4 }}>
       <div
-        ref={scrollRef}
         style={{
           position: 'relative',
           width:    totalWidth,
