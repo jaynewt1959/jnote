@@ -1,0 +1,141 @@
+/* ── Reset & base ─────────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  background: #f8fafc;
+  color: #1e293b;
+  line-height: 1.5;
+}
+
+.app-shell {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 16px 16px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 100vh;
+}
+
+.app-header {
+  text-align: center;
+  padding: 8px 0 4px;
+}
+
+.app-header h1 {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  color: #1e293b;
+}
+
+.app-header p {
+  font-size: 13px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.staff-section {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px 8px;
+  display: flex;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.feedback-section {
+  display: flex;
+  justify-content: center;
+}
+
+.feedback-section > * {
+  width: 100%;
+  max-width: 460px;
+}
+
+.progress-section {
+  padding: 0 4px;
+}
+
+.keyboard-section {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px 8px;
+}
+
+.buttons-section {
+  padding: 4px 0;
+}
+
+.controls-section {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.ctrl-btn {
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 2px solid #cbd5e1;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #475569;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  user-select: none;
+}
+
+.ctrl-btn:hover {
+  background: #e2e8f0;
+  border-color: #94a3b8;
+}
+
+.ctrl-btn.active {
+  background: #eff6ff;
+  border-color: #2563eb;
+  color: #1d4ed8;
+}
+
+.ctrl-btn.danger {
+  border-color: #fca5a5;
+  color: #b91c1c;
+}
+
+.ctrl-btn.danger:hover {
+  background: #fee2e2;
+  border-color: #ef4444;
+}
+
+.levelup-toast {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: #1e293b;
+  color: #fff;
+  padding: 12px 20px;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+  z-index: 1000;
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from { transform: translateX(40px); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
