@@ -11,18 +11,17 @@
 
 import { useEffect, useRef } from 'react';
 import * as VexFlow from 'vexflow';
-import { NOTE_BY_ID, NOTES } from '../modules/noteData.js';
+import { NOTE_BY_ID } from '../modules/noteData.js';
 
 // ── Layout constants ─────────────────────────────────────────────────────
 const WIDTH        = 460;
 const HEIGHT       = 230;
 const START_X      = 40;   // left margin (brace needs ~40px)
 const NOTE_COLOR   = '#2563eb';  // blue for target note
-const HINT_COLOR   = '#94a3b8';  // slate-400 for landmark hint
 const REST_PITCH   = 'B4';       // nominal pitch VexFlow uses for rests (ignored)
 const REST_PITCH_B = 'B2';       // for bass rest
 
-export default function GrandStaffDisplay({ noteId, showHint = false }) {
+export default function GrandStaffDisplay({ noteId }) {
   const containerRef = useRef(null);
 
   useEffect(() => {
@@ -69,27 +68,8 @@ export default function GrandStaffDisplay({ noteId, showHint = false }) {
         bassNotes[0]?.setStyle({ fillStyle: NOTE_COLOR, strokeStyle: NOTE_COLOR });
       }
 
-      // Hint: draw the nearest landmark note (dim gray) on the same stave
-      // We use a second voice so the hint note doesn't clash with the target
-      let trebleVoices = [score.voice(trebleNotes, { time: '4/4' })];
-      let bassVoices   = [score.voice(bassNotes,   { time: '4/4' })];
-
-      if (showHint) {
-        const hintNote = findNearestLandmark(note, noteId);
-        if (hintNote) {
-          const hintVexNote = hintNote.vexKey.toUpperCase().replace('/', '');
-          const hintStr = `${hintVexNote}/w`;
-          if (hintNote.clef === 'treble') {
-            const hn = score.notes(hintStr, { stem: 'up' });
-            hn[0]?.setStyle({ fillStyle: HINT_COLOR, strokeStyle: HINT_COLOR });
-            trebleVoices.push(score.voice(hn, { time: '4/4' }));
-          } else {
-            const hn = score.notes(hintStr, { clef: 'bass', stem: 'down' });
-            hn[0]?.setStyle({ fillStyle: HINT_COLOR, strokeStyle: HINT_COLOR });
-            bassVoices.push(score.voice(hn, { time: '4/4' }));
-          }
-        }
-      }
+      const trebleVoices = [score.voice(trebleNotes, { time: '4/4' })];
+      const bassVoices   = [score.voice(bassNotes,   { time: '4/4' })];
 
       const trebleStave = sys.addStave({ voices: trebleVoices });
       const bassStave   = sys.addStave({ voices: bassVoices });
@@ -112,7 +92,7 @@ export default function GrandStaffDisplay({ noteId, showHint = false }) {
         Render error: ${err.message}
       </div>`;
     }
-  }, [noteId, showHint]);
+  }, [noteId]);
 
   return (
     <div
@@ -122,16 +102,3 @@ export default function GrandStaffDisplay({ noteId, showHint = false }) {
   );
 }
 
-// ── Helpers ──────────────────────────────────────────────────────────────
-
-const SEMITONES = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
-function semiVal(n) { return n.octave * 12 + SEMITONES[n.name]; }
-
-function findNearestLandmark(note, noteId) {
-  const landmarks = NOTES.filter(n => n.isLandmark && n.clef === note.clef && n.id !== noteId);
-  if (!landmarks.length) return null;
-  const sv = semiVal(note);
-  return landmarks.reduce((best, lm) =>
-    Math.abs(semiVal(lm) - sv) < Math.abs(semiVal(best) - sv) ? lm : best
-  );
-}

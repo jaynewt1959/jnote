@@ -10,6 +10,7 @@ import FeedbackBanner    from "./components/FeedbackBanner.jsx";
 import LevelProgress     from "./components/LevelProgress.jsx";
 import { useDrillSession } from "./hooks/useDrillSession.js";
 import { useAudio }        from "./hooks/useAudio.js";
+import HintLabel           from "./components/HintLabel.jsx";
 
 export default function App() {
   const [showHint, setShowHint] = useState(false);
@@ -72,7 +73,8 @@ export default function App() {
       </header>
 
       <section className="staff-section">
-        <GrandStaffDisplay noteId={currentNote?.id} showHint={showHint} />
+        <GrandStaffDisplay noteId={currentNote?.id} />
+        <HintLabel note={currentNote} showHint={showHint} />
       </section>
 
       <section className="feedback-section">
