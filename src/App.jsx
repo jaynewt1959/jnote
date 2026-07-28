@@ -2,7 +2,7 @@
  * App.jsx - jnote Grand Staff Note Trainer
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import GrandStaffDisplay from "./components/GrandStaffDisplay.jsx";
 import PianoKeyboard     from "./components/PianoKeyboard.jsx";
 import NoteButtons       from "./components/NoteButtons.jsx";
@@ -34,6 +34,23 @@ export default function App() {
     initFromGesture(); // synchronous — must be before any async/await
     submitAnswer(answer);
   }, [initFromGesture, submitAnswer]);
+
+  // Keyboard shortcuts: A–G submit that letter as the answer
+  useEffect(() => {
+    const NOTE_KEYS = new Set(['a','b','c','d','e','f','g']);
+    function onKeyDown(e) {
+      // Ignore if focus is on an interactive element (input, button, etc.)
+      const tag = document.activeElement?.tagName?.toLowerCase();
+      if (tag === 'input' || tag === 'textarea') return;
+      const key = e.key.toLowerCase();
+      if (NOTE_KEYS.has(key)) {
+        e.preventDefault();
+        handleAnswer(key.toUpperCase());
+      }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [handleAnswer]);
 
   const kbFeedback  = feedback ? { noteId: feedback.noteId, correct: feedback.correct } : null;
   const btnFeedback = feedback ? { noteLetter: feedback.noteLetter, correct: feedback.correct } : null;
@@ -73,6 +90,7 @@ export default function App() {
 
       <section className="buttons-section">
         <NoteButtons onNoteClick={handleAnswer} feedback={btnFeedback} />
+        <p className="kbd-hint">or press A – G on your keyboard</p>
       </section>
 
       <section className="controls-section">

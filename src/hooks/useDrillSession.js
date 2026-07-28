@@ -24,7 +24,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { getNextNote, recordAnswer, getProgress, reset } from '../modules/spacedRepetition.js';
 
-const FEEDBACK_MS  = 1400;  // how long to show correct/wrong before advancing
+const FEEDBACK_MS  = 950;   // how long to show correct/wrong before advancing
+const AUDIO_LEAD   = 180;   // play next note audio this many ms before the visual
 const LEVELUP_MS   = 1800;  // how long to show "Level X unlocked!" toast
 
 export function useDrillSession({ onNoteShown } = {}) {
@@ -34,18 +35,22 @@ export function useDrillSession({ onNoteShown } = {}) {
   const [levelUpMsg,  setLevelUpMsg]    = useState(null);
 
   // Track the last shown noteId to avoid immediate repeats
-  const lastNoteId = useRef(null);
+  const lastNoteId  = useRef(null);
+  // Pre-picked next note so audio and visual use the same note
+  const pendingNote = useRef(null);
   // Guard: don't accept new answers while showing feedback
   const locked = useRef(false);
 
-  // Show the next note (called after feedback clears)
-  const showNextNote = useCallback(() => {
-    const note = getNextNote(lastNoteId.current);
+  // Show the next note (uses pre-picked note if available).
+  // audioAlreadyPlayed: true when submitAnswer already fired onNoteShown via the lead timer.
+  const showNextNote = useCallback((prePickedNote = null, audioAlreadyPlayed = false) => {
+    const note = prePickedNote ?? getNextNote(lastNoteId.current);
     lastNoteId.current = note.id;
+    pendingNote.current = null;
     setCurrentNote(note);
     setFeedback(null);
     locked.current = false;
-    if (onNoteShown) onNoteShown(note);
+    if (!audioAlreadyPlayed && onNoteShown) onNoteShown(note);
   }, [onNoteShown]);
 
   // Start on mount
@@ -65,8 +70,8 @@ export function useDrillSession({ onNoteShown } = {}) {
 
     // Normalise the answer to a letter
     const answerLetter = answer.length === 1
-      ? answer.toUpperCase()                     // already a letter
-      : answer.replace(/[^A-G]/g, '')[0]?.toUpperCase() ?? ''; // extract from noteId
+      ? answer.toUpperCase()
+      : answer.replace(/[^A-G]/g, '')[0]?.toUpperCase() ?? '';
 
     const correct = answerLetter === currentNote.name;
 
@@ -82,9 +87,18 @@ export function useDrillSession({ onNoteShown } = {}) {
       setTimeout(() => setLevelUpMsg(null), LEVELUP_MS);
     }
 
-    // Advance to next note after feedback delay
-    setTimeout(showNextNote, FEEDBACK_MS);
-  }, [currentNote, showNextNote]);
+    // Pre-pick the next note now so both audio and visual use the same note
+    const next = getNextNote(currentNote.id);
+    pendingNote.current = next;
+
+    // Play next note audio AUDIO_LEAD ms before the visual transition
+    setTimeout(() => {
+      if (onNoteShown) onNoteShown(next);
+    }, FEEDBACK_MS - AUDIO_LEAD);
+
+    // Show next note visually at FEEDBACK_MS (audio already played via lead timer)
+    setTimeout(() => showNextNote(next, true), FEEDBACK_MS);
+  }, [currentNote, showNextNote, onNoteShown]);
 
   const resetSession = useCallback(() => {
     reset();
