@@ -15,7 +15,7 @@ import StatsBar            from "./components/StatsBar.jsx";
 import { getStats }        from "./modules/spacedRepetition.js";
 
 export default function App() {
-  const [showHint, setShowHint] = useState(false);
+  const [showHint, setShowHint] = useState(true);
   const { audioEnabled, toggleAudio, play, initFromGesture } = useAudio();
 
   // onNoteShown is called from setTimeout — audio works here once context is unlocked
