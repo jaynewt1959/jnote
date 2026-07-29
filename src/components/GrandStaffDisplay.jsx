@@ -18,7 +18,8 @@ const WIDTH        = 460;
 const HEIGHT       = 380;  // extra height for many ledger lines above/below
 const STAFF_Y      = 80;   // top margin so high ledger-line notes aren't clipped
 const START_X      = 40;   // left margin (brace needs ~40px)
-const NOTE_COLOR   = '#2563eb';  // blue for target note
+const NOTE_COLOR          = '#2563eb';  // blue for regular notes
+const LANDMARK_NOTE_COLOR = '#16a34a';  // green for landmark notes
 const REST_PITCH   = 'B4';       // nominal pitch VexFlow uses for rests (ignored)
 const REST_PITCH_B = 'B2';       // for bass rest
 
@@ -62,11 +63,12 @@ export default function GrandStaffDisplay({ noteId }) {
       const trebleNotes = score.notes(trebleStr, { stem: 'up' });
       const bassNotes   = score.notes(bassStr,   { clef: 'bass', stem: 'down' });
 
-      // Apply colour to the target note
+      // Apply colour to the target note (green for landmarks, blue otherwise)
+      const noteColor = note.isLandmark ? LANDMARK_NOTE_COLOR : NOTE_COLOR;
       if (note.clef === 'treble') {
-        trebleNotes[0]?.setStyle({ fillStyle: NOTE_COLOR, strokeStyle: NOTE_COLOR });
+        trebleNotes[0]?.setStyle({ fillStyle: noteColor, strokeStyle: noteColor });
       } else {
-        bassNotes[0]?.setStyle({ fillStyle: NOTE_COLOR, strokeStyle: NOTE_COLOR });
+        bassNotes[0]?.setStyle({ fillStyle: noteColor, strokeStyle: noteColor });
       }
 
       const trebleVoices = [score.voice(trebleNotes, { time: '4/4' })];
