@@ -15,7 +15,8 @@ import { NOTE_BY_ID } from '../modules/noteData.js';
 
 // ── Layout constants ─────────────────────────────────────────────────────
 const WIDTH        = 460;
-const HEIGHT       = 280;  // extra height for 4 ledger lines above/below
+const HEIGHT       = 380;  // extra height for many ledger lines above/below
+const STAFF_Y      = 80;   // top margin so high ledger-line notes aren't clipped
 const START_X      = 40;   // left margin (brace needs ~40px)
 const NOTE_COLOR   = '#2563eb';  // blue for target note
 const REST_PITCH   = 'B4';       // nominal pitch VexFlow uses for rests (ignored)
@@ -43,7 +44,7 @@ export default function GrandStaffDisplay({ noteId }) {
       const staveWidth = WIDTH - START_X - 20;
 
       // ── Build the system ─────────────────────────────────────────────
-      const sys = factory.System({ x: START_X, y: 0, width: staveWidth });
+      const sys = factory.System({ x: START_X, y: STAFF_Y, width: staveWidth });
 
       // ── Treble voice ─────────────────────────────────────────────────
       let trebleStr, bassStr;
@@ -97,7 +98,7 @@ export default function GrandStaffDisplay({ noteId }) {
   return (
     <div
       ref={containerRef}
-      style={{ width: WIDTH, height: HEIGHT, margin: '0 auto' }}
+      style={{ width: WIDTH, height: HEIGHT, margin: '0 auto', overflow: 'visible' }}
     />
   );
 }
