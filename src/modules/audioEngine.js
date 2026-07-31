@@ -46,10 +46,17 @@ function getCtx() {
  *
  * Dropping the sound when suspended is the wrong trade: resume first, then
  * schedule when the promise settles.
+ *
+ * Before the first gesture there is no context at all: `touchAudio()` is the
+ * only thing that creates one. Building it here instead would leave a
+ * permanently blocked context whose pending resume() can fire a long-stale
+ * note minutes later, and would burn the one chance browsers give to create
+ * an already-running context inside a gesture.
  */
 function whenRunning(schedule) {
   try {
-    const c = getCtx();
+    if (!ctx) return; // audio not unlocked yet — nothing to schedule against
+    const c = ctx;
     if (c.state === 'running') {
       schedule(c);
       return;

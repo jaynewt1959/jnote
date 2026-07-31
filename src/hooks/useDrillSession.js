@@ -29,7 +29,6 @@ import {
 } from '../modules/spacedRepetition.js';
 
 const FEEDBACK_MS  = 730;   // how long to show correct/wrong before advancing
-const AUDIO_LEAD   = 200;   // play next note audio this many ms before the visual
 const LEVELUP_MS   = 1800;  // how long to show "Level X unlocked!" toast
 const WANDER_MS    = 8000;  // RTs beyond this are attention-wandered; skip RT recording
 
@@ -52,8 +51,10 @@ export function useDrillSession({ onNoteShown, onWrongAnswer } = {}) {
   const noteStartTime = useRef(null);
 
   // Show the next note (uses pre-picked note if available).
-  // audioAlreadyPlayed: true when submitAnswer already fired onNoteShown via the lead timer.
-  const showNextNote = useCallback((prePickedNote = null, audioAlreadyPlayed = false) => {
+  // The note sounds at the moment it is drawn: onNoteShown fires here and
+  // nowhere else, so the pitch the user hears always belongs to the note in
+  // front of them rather than trailing their last keypress.
+  const showNextNote = useCallback((prePickedNote = null) => {
     const note = prePickedNote ?? getNextNote(lastNoteId.current);
     lastNoteId.current = note.id;
     pendingNote.current = null;
@@ -62,7 +63,7 @@ export function useDrillSession({ onNoteShown, onWrongAnswer } = {}) {
     setNoteSerial(n => n + 1);
     locked.current = false;
     noteStartTime.current = Date.now(); // start reaction-time clock
-    if (!audioAlreadyPlayed && onNoteShown) onNoteShown(note);
+    if (onNoteShown) onNoteShown(note);
   }, [onNoteShown]);
 
   // Start on mount
@@ -113,14 +114,9 @@ export function useDrillSession({ onNoteShown, onWrongAnswer } = {}) {
     const next = getNextNote(currentNote.id);
     pendingNote.current = next;
 
-    // Play next note audio AUDIO_LEAD ms before the visual transition
-    setTimeout(() => {
-      if (onNoteShown) onNoteShown(next);
-    }, FEEDBACK_MS - AUDIO_LEAD);
-
-    // Show next note visually at FEEDBACK_MS (audio already played via lead timer)
-    setTimeout(() => showNextNote(next, true), FEEDBACK_MS);
-  }, [currentNote, showNextNote, onNoteShown, onWrongAnswer]);
+    // Reveal the next note — and sound it — at FEEDBACK_MS
+    setTimeout(() => showNextNote(next), FEEDBACK_MS);
+  }, [currentNote, showNextNote, onWrongAnswer]);
 
   const resetSession = useCallback(() => {
     reset();

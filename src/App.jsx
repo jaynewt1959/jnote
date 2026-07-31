@@ -2,7 +2,7 @@
  * App.jsx - jnote Grand Staff Note Trainer
  */
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import GrandStaffDisplay from "./components/GrandStaffDisplay.jsx";
 import PianoKeyboard     from "./components/PianoKeyboard.jsx";
 import NoteButtons       from "./components/NoteButtons.jsx";
@@ -14,6 +14,11 @@ import { useAudio }        from "./hooks/useAudio.js";
 import HintLabel           from "./components/HintLabel.jsx";
 import StatsBar            from "./components/StatsBar.jsx";
 import { getStats }        from "./modules/spacedRepetition.js";
+import { isAudioReady }    from "./modules/audioEngine.js";
+
+// How long the first-gesture unlock waits before sounding the note already on
+// screen. Only a gesture that turns out not to be an answer gets the replay.
+const UNLOCK_REPLAY_MS = 300;
 
 export default function App() {
   const [showHint, setShowHint] = useState(true);
@@ -48,6 +53,53 @@ export default function App() {
     initFromGesture(); // synchronous — must be before any async/await
     submitAnswer(answer);
   }, [initFromGesture, submitAnswer]);
+
+  // ── First-gesture audio unlock ─────────────────────────────────────────
+  // Every browser keeps the AudioContext locked until the user interacts, and
+  // the first note is drawn on page load — before any interaction exists. Its
+  // audio is therefore always lost. Unlock on the first gesture anywhere and
+  // sound whatever note is on screen, so the drill never opens in silence.
+  const liveNote = useRef(null);
+  const liveFeedback = useRef(null);
+  const liveSerial = useRef(0);
+  useEffect(() => { liveNote.current = currentNote; }, [currentNote]);
+  useEffect(() => { liveFeedback.current = feedback; }, [feedback]);
+  useEffect(() => { liveSerial.current = noteSerial; }, [noteSerial]);
+
+  useEffect(() => {
+    if (isAudioReady()) return;
+
+    let replayTimer = null;
+
+    function unlock() {
+      initFromGesture(); // synchronous — must happen inside the gesture
+      teardown();
+
+      // The unlocking gesture is often an answer, which brings its own note
+      // FEEDBACK_MS later — replaying on top of that is the double note. The
+      // decision has to be deferred, because a pointerdown fires well before
+      // the click it belongs to is dispatched as an answer. UNLOCK_REPLAY_MS
+      // is long enough for that dispatch and React's commit to land.
+      const serialAtUnlock = liveSerial.current;
+      replayTimer = setTimeout(() => {
+        const answered = liveFeedback.current !== null ||
+                         liveSerial.current !== serialAtUnlock;
+        if (!answered && liveNote.current) play(liveNote.current.toneNote);
+      }, UNLOCK_REPLAY_MS);
+    }
+    function teardown() {
+      window.removeEventListener('pointerdown', unlock, true);
+      window.removeEventListener('keydown', unlock, true);
+    }
+
+    // Capture phase: unlock before React's own handlers run.
+    window.addEventListener('pointerdown', unlock, true);
+    window.addEventListener('keydown', unlock, true);
+    return () => {
+      teardown();
+      if (replayTimer) clearTimeout(replayTimer);
+    };
+  }, [initFromGesture, play]);
 
   // Keyboard shortcuts: A–G submit that letter as the answer
   useEffect(() => {

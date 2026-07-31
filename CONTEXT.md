@@ -138,13 +138,22 @@ A slow-but-correct answer stalls rather than punishes: the user knows the note, 
 ### Audio (Safari-critical)
 Safari requires `AudioContext.resume()` to be called **synchronously within a user gesture**. The `touchAudio()` function in `audioEngine.js` does this — it must be called synchronously in click/keydown handlers before any async. `initFromGesture()` in `useAudio.js` wraps this. Tone.js was removed; synthesis is native Web Audio API (triangle + sine oscillators, lowpass filter, ADSR envelope).
 
+`touchAudio()` is the **only** thing that creates the AudioContext. `whenRunning()` returns early when there is no context yet rather than building one, because a context created before a gesture is born blocked: its pending `resume()` can fire a long-stale note minutes later, and it wastes the one chance a browser gives to create an already-running context inside a gesture.
+
+### First-gesture unlock
+The first note is drawn on page load, before any interaction exists, so its audio can never play — no browser will sound it. `App.jsx` therefore attaches capture-phase `pointerdown`/`keydown` listeners on `window` that unlock audio on the **first gesture anywhere** (not just an answer) and then sound the note already on screen. Listeners detach once `isAudioReady()` is true.
+
+The replay is **deferred by `UNLOCK_REPLAY_MS` (300 ms)** and skipped if feedback appeared or `noteSerial` moved in the meantime — i.e. if the unlocking gesture turned out to be an answer, which brings its own note `FEEDBACK_MS` later. Deciding immediately produces two notes back to back: `pointerdown` fires long before the `click` it belongs to is dispatched as an answer, so the replay would fire first and the answer's note would follow it.
+
 ### Error sound
-`playError()` is the same buzz as sibling project jread (`jread/audio.js` → `playIncorrect`): sawtooth dropping 180 → 90 Hz over 300 ms, 360 ms total. It fires **synchronously inside the answer gesture** via the `onWrongAnswer` callback of `useDrillSession`. It finishes before the next note's audio preview at 530 ms, so the two never overlap. Muted by the same "Audio off" toggle as note playback.
+`playError()` is the same buzz as sibling project jread (`jread/audio.js` → `playIncorrect`): sawtooth dropping 180 → 90 Hz over 300 ms, 360 ms total. It fires **synchronously inside the answer gesture** via the `onWrongAnswer` callback of `useDrillSession`. It finishes long before the next note sounds at `FEEDBACK_MS` (730 ms), so the two never overlap. Muted by the same "Audio off" toggle as note playback.
 
-**Trap — `resume()` is async.** Every sound goes through `whenRunning(schedule)` in `audioEngine.js`, which resumes the context and defers scheduling until the promise settles. Do NOT write `if (ctx.state === 'suspended') return;` and schedule in the same tick: a sound requested straight from the unlocking gesture is scheduled against a still-frozen clock and is silently lost. This bit the error buzz — it was inaudible while note playback worked, purely because notes are scheduled from a 530 ms timer by which point `resume()` has settled.
+**Trap — `resume()` is async.** Every sound goes through `whenRunning(schedule)` in `audioEngine.js`, which resumes the context and defers scheduling until the promise settles. Do NOT write `if (ctx.state === 'suspended') return;` and schedule in the same tick: a sound requested straight from the unlocking gesture is scheduled against a still-frozen clock and is silently lost. This bit the error buzz — it was inaudible while note playback worked, purely because notes are scheduled from a later timer by which point `resume()` has settled.
 
-### Pre-picked next note for timing
-`useDrillSession` pre-picks the next note immediately on answer submission. Audio fires at `FEEDBACK_MS − AUDIO_LEAD` (currently 730 − 200 = 530ms after answer). The visual transition fires at 730ms. This gives a short audio preview of the next note before it appears.
+### Note audio fires on appearance
+`onNoteShown` is called from exactly one place — `showNextNote()` — so a note sounds at the instant it is drawn. There is no audio lead. An earlier `AUDIO_LEAD` of 200 ms previewed the next note before the visual, but at 530 ms after the keypress the sound read as belonging to the button press rather than to the note, which is the wrong association for ear-plus-eye reinforcement.
+
+`useDrillSession` still pre-picks the next note on answer submission so the reveal at `FEEDBACK_MS` (730 ms) has its note ready.
 
 ### VexFlow rendering
 `GrandStaffDisplay` is a fully imperative component — VexFlow draws into a `ref` div. On each `noteId` change, the container is cleared (`innerHTML = ''`) and redrawn. Always shows full grand staff; the non-quiz clef gets a whole rest. The quiz note is colored blue (`#2563eb`), or green for landmarks.
