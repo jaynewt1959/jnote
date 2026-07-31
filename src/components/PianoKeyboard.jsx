@@ -8,8 +8,10 @@
  * Props:
  *   onNoteClick(noteId)  — called with the selected note id (e.g. "C4")
  *   feedback             — { noteId, correct } | null  (flashes key on answer)
- *   activeNoteId         — the current quiz note (highlights its octave band)
- *   lowestOctave         — first octave to show (default 3, expands to 2 for bass)
+ *   activePitch          — sounding pitch of the current quiz note (e.g. "C4"),
+ *                          used to tint its octave band. This is the note's
+ *                          `pitch`, never its drill id: cross-staff ids look
+ *                          like "C4@bass" and match no key here.
  */
 
 // White keys that have a black key after them (all except E and B)
@@ -35,7 +37,7 @@ function buildWhiteKeyList() {
   return keys;
 }
 
-export default function PianoKeyboard({ onNoteClick, feedback, activeNoteId }) {
+export default function PianoKeyboard({ onNoteClick, feedback, activePitch }) {
   const keyList    = buildWhiteKeyList();           // 35 white keys
   const totalWidth = keyList.length * WHITE_W;
 
@@ -57,7 +59,7 @@ export default function PianoKeyboard({ onNoteClick, feedback, activeNoteId }) {
   });
 
   // Determine which octave the active note is in (for subtle highlight)
-  const activeOctave = activeNoteId ? parseInt(activeNoteId.replace(/[^0-9]/g, '')) : null;
+  const activeOctave = activePitch ? parseInt(activePitch.replace(/[^0-9]/g, '')) : null;
 
   function keyColor(noteId, isBlack) {
     if (!feedback) return null; // no override

@@ -15,15 +15,36 @@ import { NOTE_BY_ID } from '../modules/noteData.js';
 
 // ── Layout constants ─────────────────────────────────────────────────────
 const WIDTH        = 460;
-const HEIGHT       = 380;  // extra height for many ledger lines above/below
-const STAFF_Y      = 80;   // top margin so high ledger-line notes aren't clipped
+const HEIGHT       = 400;  // extra height for many ledger lines above/below
+const STAFF_Y      = 70;   // top margin so high ledger-line notes aren't clipped
 const START_X      = 40;   // left margin (brace needs ~40px)
 const NOTE_COLOR          = '#2563eb';  // blue for regular notes
 const LANDMARK_NOTE_COLOR = '#16a34a';  // green for landmark notes
 const REST_PITCH   = 'B4';       // nominal pitch VexFlow uses for rests (ignored)
 const REST_PITCH_B = 'B2';       // for bass rest
 
-export default function GrandStaffDisplay({ noteId }) {
+/**
+ * Vertical gap between the staves, in staff-line spaces (VexFlow multiplies
+ * by 10px). VexFlow's default of 12 leaves only 80px between the treble
+ * bottom line and the bass top line, which puts a 4-ledger cross-staff note
+ * almost exactly on the midline — the eye can no longer tell which staff owns
+ * it. 16 gives 120px, so a bass-clef C5 and a treble-clef C3 both stay
+ * clearly on their own side of the gap.
+ *
+ * This is deliberately constant for every note. Sizing the gap to the note
+ * being drawn would both shift the layout mid-drill and leak the answer:
+ * a suddenly wider staff would announce "this is a cross-staff note".
+ */
+const SPACE_BETWEEN_STAVES = 16;
+
+/**
+ * @param {string}  noteId          drill item id (e.g. "C4" or "C4@bass")
+ * @param {boolean} showLedgerCue   colour the ledger lines to match the note,
+ *                                  making staff ownership unambiguous. Tied
+ *                                  to the hint toggle so it can be switched
+ *                                  off once the reading is secure.
+ */
+export default function GrandStaffDisplay({ noteId, showLedgerCue = false }) {
   const containerRef = useRef(null);
 
   useEffect(() => {
@@ -45,7 +66,12 @@ export default function GrandStaffDisplay({ noteId }) {
       const staveWidth = WIDTH - START_X - 20;
 
       // ── Build the system ─────────────────────────────────────────────
-      const sys = factory.System({ x: START_X, y: STAFF_Y, width: staveWidth });
+      const sys = factory.System({
+        x: START_X,
+        y: STAFF_Y,
+        width: staveWidth,
+        spaceBetweenStaves: SPACE_BETWEEN_STAVES,
+      });
 
       // ── Treble voice ─────────────────────────────────────────────────
       let trebleStr, bassStr;
@@ -65,10 +91,14 @@ export default function GrandStaffDisplay({ noteId }) {
 
       // Apply colour to the target note (green for landmarks, blue otherwise)
       const noteColor = note.isLandmark ? LANDMARK_NOTE_COLOR : NOTE_COLOR;
-      if (note.clef === 'treble') {
-        trebleNotes[0]?.setStyle({ fillStyle: noteColor, strokeStyle: noteColor });
-      } else {
-        bassNotes[0]?.setStyle({ fillStyle: noteColor, strokeStyle: noteColor });
+      const target = note.clef === 'treble' ? trebleNotes[0] : bassNotes[0];
+      target?.setStyle({ fillStyle: noteColor, strokeStyle: noteColor });
+
+      // Ledger lines default to grey and are drawn from the owning stave
+      // outwards. Tinting them to match the notehead spells out which staff
+      // the note belongs to — the whole difficulty of a cross-staff note.
+      if (showLedgerCue) {
+        target?.setLedgerLineStyle({ strokeStyle: noteColor, lineWidth: 2 });
       }
 
       const trebleVoices = [score.voice(trebleNotes, { time: '4/4' })];
@@ -95,7 +125,7 @@ export default function GrandStaffDisplay({ noteId }) {
         Render error: ${err.message}
       </div>`;
     }
-  }, [noteId]);
+  }, [noteId, showLedgerCue]);
 
   return (
     <div

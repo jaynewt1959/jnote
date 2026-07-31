@@ -2,7 +2,7 @@
 
 ## What it is
 
-A web app that teaches beginners to identify notes on the piano grand staff (treble + bass clefs) through progressive drilling with spaced repetition and audio reinforcement. Built for a single adult learner who wants to achieve rapid, automatic note recognition including extreme ledger lines.
+A web app that teaches beginners to identify notes on the piano grand staff (treble + bass clefs) through progressive drilling with spaced repetition and audio reinforcement. Built for a single adult learner who wants to achieve rapid, automatic note recognition including extreme ledger lines and cross-staff ledger lines.
 
 **Live:** https://jnote-ten.vercel.app  
 **Repo:** https://github.com/jaynewt1959/jnote  
@@ -21,10 +21,11 @@ src/
     FeedbackBanner.jsx      ✓/✗/too-slow result + reaction time per answer
     CountdownBar.jsx        CSS-animated bar depleting over the 3s fluency budget
     HintLabel.jsx           Fixed-height text hint below staff (never causes layout shift)
-    LevelProgress.jsx       Level N of 12 + fluent count + progress bar
+    LevelProgress.jsx       Level N of MAX_LEVEL + fluent count + progress bar
     StatsBar.jsx            Rolling avg reaction time + trend (↓ faster / ↑ slower)
   modules/
-    noteData.js             All 45 notes, 12 levels, isLandmark flags
+    noteData.js             All 52 drill items, 19 levels, isLandmark/crossStaff flags,
+                            staffLine() + ledgerPosition() staff geometry helpers
     spacedRepetition.js     Score engine + rtLog — persists to localStorage 'jnote_state'
     audioEngine.js          Native Web Audio API piano synth (no CDN, Safari-safe)
   hooks/
@@ -34,9 +35,11 @@ src/
 
 ---
 
-## Curriculum — 12 levels, 45 natural notes
+## Curriculum — 19 levels, 52 drill items
 
-Each level adds notes cumulatively. A level advances when all notes in the pool reach score ≥ 4 — 4 net identifications that are both correct **and** within the 3 s fluency budget. Phase 2 (accidentals) is not yet implemented.
+Each level adds items cumulatively. A level advances when all items in the pool reach score ≥ 4 — 4 net identifications that are both correct **and** within the 3 s fluency budget. Phase 2 (accidentals) is not yet implemented.
+
+### Phase 1 — absolute register (levels 1–12, 37 items)
 
 | Level | Notes added | Clef | Position |
 |-------|-------------|------|----------|
@@ -53,11 +56,31 @@ Each level adds notes cumulatively. A level advances when all notes in the pool 
 | 11 | D6, E6, B1, A1 | treble/bass | 3rd ledger lines |
 | 12 | F6, G6, G1, F1 | treble/bass | 4th ledger lines |
 
+### Phase 1b — cross-staff ledger lines (levels 13–19, 15 items)
+
+Piano notation keeps a hand's part on its own staff even when the pitch belongs to the other staff's register, using extended ledger lines rather than a clef change. These items drill the *inward* ledger region: the left hand climbing above the bass staff and the right hand descending below the treble staff.
+
+| Level | Items added | Clef | Position |
+|-------|-------------|------|----------|
+| 13 | C4@bass, D4@bass | bass | 1st ledger above bass |
+| 14 | E4@bass, F4@bass | bass | 2nd ledger above bass |
+| 15 | G4@bass, A4@bass | bass | 3rd ledger above bass |
+| 16 | B4@bass, C5@bass | bass | 4th ledger above bass |
+| 17 | B3@treble, A3@treble | treble | 1st–2nd ledger below treble |
+| 18 | G3@treble, F3@treble | treble | 2nd–3rd ledger below treble |
+| 19 | E3@treble, D3@treble, C3@treble | treble | 3rd–4th ledger below treble |
+
+Capped at **4 ledger lines** in each direction. Beyond that the notehead drifts past the midpoint of the gap and stops reading as belonging to its own staff.
+
+There is deliberately no `C4@treble`: middle C on the treble staff is already the first ledger line below it, taught as `C4` in level 1. The treble side of the overlap therefore starts one step lower, at B3.
+
 ---
 
 ## Landmark notes
 
 Used by HintLabel to describe each note's position. Landmarks are in `noteData.js` as `isLandmark: true`. The hint text format is always single-line and nowrap.
+
+Landmark lookup is **clef-filtered**. Now that a pitch can appear on either staff, a treble-clef A3 must not be described relative to the bass-clef A3 landmark — that is a completely different place on the page.
 
 | ID | Description |
 |----|-------------|
@@ -75,6 +98,24 @@ Used by HintLabel to describe each note's position. Landmarks are in `noteData.j
 ---
 
 ## Key design decisions
+
+### Drill item identity: `id` vs `pitch`
+A drill item is a **reading skill**, not a pitch. From level 13 the same pitch appears twice under different ids — `C4` (middle C as the ledger line below the treble staff) and `C4@bass` (the same pitch as the first ledger line above the bass staff). They look nothing alike on the page and are scored independently.
+
+- `id` — spaced-repetition key, `rtLog` key, `NOTE_BY_ID` key. May contain `@`.
+- `pitch` — the sounding note (`"C4"`). Used for audio and for piano-key highlighting.
+
+`pitch` and `crossStaff` are **derived** in `noteData.js` from the literal rows, so they cannot drift out of sync with `name`/`octave`.
+
+Anything that maps a note onto the piano keyboard must use `pitch`. Using `id` there silently breaks: `"C4@bass"` matches no key.
+
+### Staff geometry (`staffLine` / `ledgerPosition`)
+`noteData.js` exports helpers that compute a note's position **in its own clef**, using VexFlow's line numbering (1 = bottom line, 5 = top line, halves sit in a space):
+
+- `staffLine(note)` — e.g. bass-clef C5 is line 9.5, treble-clef C3 is line −3.5.
+- `ledgerPosition(note)` — `{ direction, count, onLine }`, where `onLine` separates "on the 3rd ledger" from "in the space beyond it".
+
+These drive the cross-staff hint text and make the 4-ledger cap checkable rather than eyeballed.
 
 ### Spaced repetition
 Scores 0–5 per note. Weighted random selection: `weight = (6 − score)²`. Level advances when the entire pool reaches score ≥ 4. Full state in `localStorage` key `jnote_state`.
@@ -106,7 +147,26 @@ Safari requires `AudioContext.resume()` to be called **synchronously within a us
 `useDrillSession` pre-picks the next note immediately on answer submission. Audio fires at `FEEDBACK_MS − AUDIO_LEAD` (currently 730 − 200 = 530ms after answer). The visual transition fires at 730ms. This gives a short audio preview of the next note before it appears.
 
 ### VexFlow rendering
-`GrandStaffDisplay` is a fully imperative component — VexFlow draws into a `ref` div. On each `noteId` change, the container is cleared (`innerHTML = ''`) and redrawn. Always shows full grand staff; the non-quiz clef gets a whole rest. The quiz note is colored blue (`#2563eb`).
+`GrandStaffDisplay` is a fully imperative component — VexFlow draws into a `ref` div. On each `noteId` change, the container is cleared (`innerHTML = ''`) and redrawn. Always shows full grand staff; the non-quiz clef gets a whole rest. The quiz note is colored blue (`#2563eb`), or green for landmarks.
+
+VexFlow imposes **no cap on ledger lines** — `StaveNote.drawLedgerLines()` simply walks outward from the staff — so cross-staff notes needed no rendering workarounds. Because every drill note is a whole note, there are no stems, and therefore none of the usual stem/flag collision problems either.
+
+### Grand staff spacing (`SPACE_BETWEEN_STAVES = 16`)
+VexFlow's default `spaceBetweenStaves` of 12 leaves 80 px between the treble bottom line and the bass top line. At that gap a 4-ledger cross-staff note lands almost exactly on the midline and the eye can no longer tell which staff owns it. 16 gives 120 px (midpoint y = 210), which keeps every cross-staff item clearly on its own side:
+
+| Item | Ledgers | Head y | Side |
+|------|---------|--------|------|
+| C5@bass | 4 above | 225 | below midpoint — bass |
+| C4@bass | 1 above | 260 | below midpoint — bass |
+| B3@treble | 1 below | 165 | above midpoint — treble |
+| C3@treble | 4 below | 195 | above midpoint — treble |
+
+With `STAFF_Y = 70` and `HEIGHT = 400`, the vertical extremes still fit: G6 sits at y = 70, F1 at y = 350.
+
+**The gap is deliberately constant for every note.** Sizing it to the note being drawn would shift the layout mid-drill *and* leak the answer — a suddenly wider staff would announce "this is a cross-staff note".
+
+### Ledger line colour cue
+Ledger lines default to grey (`#444`) and are drawn outward from the owning stave. When hints are on, `showLedgerCue` tints the target note's ledger lines to match its notehead via `setLedgerLineStyle()`, which spells out staff ownership — the entire difficulty of a cross-staff note. Turning hints off restores normal notation, so the final drilling is honest.
 
 ### Layout stability
 `HintLabel` renders a fixed `height: 22px` div with `white-space: nowrap` and `overflow: hidden`. It is a sibling of `.staff-section` (not inside it), so its content never affects the staff position.
@@ -139,7 +199,9 @@ git push origin main
 
 ## What's next / known gaps
 
-- **Accidentals (Phase 2):** sharps/flats not yet implemented. The plan was to unlock after Level 12.
+- **Accidentals (Phase 2):** sharps/flats not yet implemented. The plan was to unlock after the final level.
+- **Late-level grind:** by level 19 the pool is 52 items and advancement still requires *every* item to reach score ≥ 4. If this becomes tedious, switch advanced levels to a focused subset or a rolling review pool rather than full re-mastery.
+- **Outward cross-staff notes not covered:** only the *inward* overlap is drilled. Left-hand notes written above the treble staff, or right-hand notes below the bass staff, are rare in real music and are not in the curriculum.
 - **MIDI input:** Tone.js was removed; MIDI would need a separate WebMIDI API integration.
 - **Mobile:** Layout is desktop-first. The keyboard may be cramped on small screens.
 - **Reset also clears rtLog:** The reset button wipes all progress including reaction time history.

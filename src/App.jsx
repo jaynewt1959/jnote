@@ -69,8 +69,10 @@ export default function App() {
   // Re-read stats after every answer (progress triggers re-render on each answer)
   const stats = getStats();
 
-  // Always highlight the correct note's key (works for letter-button and keyboard answers)
-  const kbFeedback  = feedback ? { noteId: currentNote?.id, correct: feedback.correct } : null;
+  // Always highlight the correct note's key (works for letter-button and keyboard answers).
+  // Keyed on `pitch`, not `id`: cross-staff items have ids like "C4@bass",
+  // which match no piano key.
+  const kbFeedback  = feedback ? { noteId: currentNote?.pitch, correct: feedback.correct } : null;
   const btnFeedback = feedback ? { noteLetter: feedback.noteLetter, correct: feedback.correct } : null;
 
   function handleReset() {
@@ -87,7 +89,7 @@ export default function App() {
       </header>
 
       <section className="staff-section">
-        <GrandStaffDisplay noteId={currentNote?.id} />
+        <GrandStaffDisplay noteId={currentNote?.id} showLedgerCue={showHint} />
       </section>
 
       <CountdownBar
@@ -112,7 +114,7 @@ export default function App() {
         <PianoKeyboard
           onNoteClick={handleAnswer}
           feedback={kbFeedback}
-          activeNoteId={currentNote?.id}
+          activePitch={currentNote?.pitch}
         />
       </section>
 
