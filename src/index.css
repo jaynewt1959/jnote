@@ -89,6 +89,60 @@ body {
   letter-spacing: 0.02em;
 }
 
+/* Countdown bar — depletes over the fluency budget (FLUENT_MS).
+   Negative margin-top pulls it snug under the staff card. */
+.countdown-wrap {
+  margin-top:      -10px;
+  display:         flex;
+  justify-content: center;
+}
+
+.countdown-track {
+  width:         100%;
+  max-width:     460px;
+  height:        6px;
+  background:    #e2e8f0;
+  border-radius: 3px;
+  overflow:      hidden;
+}
+
+.countdown-track.running {
+  animation-name:            countdownExpire;
+  animation-timing-function: linear;
+  animation-fill-mode:       forwards;
+}
+
+.countdown-fill {
+  width:         0;
+  height:        100%;
+  border-radius: 3px;
+  background:    #2563eb;
+}
+
+.countdown-track.running .countdown-fill {
+  animation-name:            countdownDeplete, countdownColor;
+  animation-timing-function: linear;
+  animation-fill-mode:       forwards;
+}
+
+@keyframes countdownDeplete {
+  from { width: 100%; }
+  to   { width: 0; }
+}
+
+/* Blue while there is time in hand, amber as the budget runs out. */
+@keyframes countdownColor {
+  0%,  60% { background: #2563eb; }
+  100%     { background: #f59e0b; }
+}
+
+/* Track turns amber the instant the budget expires — answers past this point
+   still count as answers, they just earn no score credit. */
+@keyframes countdownExpire {
+  0%, 99.9% { background: #e2e8f0; }
+  100%      { background: #fde68a; }
+}
+
 /* Fixed-height hint label — never causes layout shift.
    Negative margin-top cancels the flex gap above it so it sits
    snugly below the staff without altering anything else. */

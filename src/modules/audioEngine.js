@@ -8,6 +8,7 @@
  * Usage:
  *   touchAudio()   — call SYNCHRONOUSLY inside a click/keydown handler
  *   playNote('C4') — call any time after touchAudio()
+ *   playError()    — buzz for a wrong answer
  */
 
 // ── Note frequency table ────────────────────────────────────────────────
@@ -34,6 +35,37 @@ function getCtx() {
 }
 
 /**
+ * Run `schedule(ctx)` against a context whose clock is actually running.
+ *
+ * `resume()` is ASYNCHRONOUS. A sound requested in the same tick as the
+ * unlocking gesture (e.g. the wrong-answer buzz, fired straight from the
+ * click/keydown handler) would otherwise be scheduled against a frozen clock
+ * and never heard. Sounds fired from a later timer don't hit this because
+ * resume() has long since settled — which is why note playback worked while
+ * the error buzz was silent.
+ *
+ * Dropping the sound when suspended is the wrong trade: resume first, then
+ * schedule when the promise settles.
+ */
+function whenRunning(schedule) {
+  try {
+    const c = getCtx();
+    if (c.state === 'running') {
+      schedule(c);
+      return;
+    }
+    const resumed = c.resume();
+    if (resumed && typeof resumed.then === 'function') {
+      resumed.then(() => schedule(c)).catch(() => { /* still locked */ });
+    } else {
+      schedule(c); // older WebKit: resume() returns undefined
+    }
+  } catch (err) {
+    console.warn('audio unavailable:', err);
+  }
+}
+
+/**
  * Call this SYNCHRONOUSLY inside every click/keydown handler.
  * Resumes the AudioContext within the user gesture so Safari unlocks audio.
  * Safe to call repeatedly.
@@ -56,10 +88,7 @@ export function touchAudio() {
  * @param {string} noteId  e.g. 'C4', 'G3'
  */
 export function playNote(noteId) {
-  try {
-    const c = getCtx();
-    if (c.state === 'suspended') return; // not yet unlocked
-
+  whenRunning((c) => {
     const freq = noteToFreq(noteId);
     const now  = c.currentTime;
 
@@ -96,10 +125,35 @@ export function playNote(noteId) {
     osc2.connect(g2);
     osc2.start(now);
     osc2.stop(now + 1.0);
+  });
+}
 
-  } catch (err) {
-    console.warn('playNote error:', err);
-  }
+/**
+ * Dull descending buzz for a wrong answer — same sound as sibling project
+ * jread (`audio.js` → `playIncorrect`): sawtooth dropping 180 → 90 Hz over
+ * 300 ms. Deliberately unmusical so it can never be mistaken for a note, and
+ * short enough (360 ms) to finish well before the next note's audio preview
+ * fires at FEEDBACK_MS − AUDIO_LEAD (530 ms).
+ */
+export function playError() {
+  whenRunning((c) => {
+    const now = c.currentTime;
+
+    const osc  = c.createOscillator();
+    const gain = c.createGain();
+    osc.connect(gain);
+    gain.connect(c.destination);
+
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(180, now);
+    osc.frequency.exponentialRampToValueAtTime(90, now + 0.30);
+
+    gain.gain.setValueAtTime(0.22, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.33);
+
+    osc.start(now);
+    osc.stop(now + 0.36);
+  });
 }
 
 export function isAudioReady() {

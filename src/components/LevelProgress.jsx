@@ -1,15 +1,18 @@
 /**
  * LevelProgress.jsx
  *
- * Shows: "Level 3 · 7 / 9 notes comfortable" with a filled progress bar.
+ * Shows: "Level 3 · 7 / 9 fluent (≤3.0s)" with a filled progress bar.
+ * "Fluent" means the note has been identified correctly and inside the time
+ * limit enough times to count toward unlocking the next level.
  */
 
 import { MAX_LEVEL } from '../modules/noteData.js';
 
-export default function LevelProgress({ progress }) {
+export default function LevelProgress({ progress, fluentMs }) {
   if (!progress) return null;
-  const { currentLevel, poolSize, comfortableCount, isComplete } = progress;
-  const pct = poolSize > 0 ? (comfortableCount / poolSize) * 100 : 0;
+  const { currentLevel, poolSize, fluentCount, isComplete } = progress;
+  const pct = poolSize > 0 ? (fluentCount / poolSize) * 100 : 0;
+  const limitLabel = fluentMs ? ` (≤${(fluentMs / 1000).toFixed(1)}s)` : '';
 
   return (
     <div style={{ width: '100%', maxWidth: 460, margin: '0 auto' }}>
@@ -27,7 +30,7 @@ export default function LevelProgress({ progress }) {
             ? '🎉 All levels complete!'
             : `Level ${currentLevel} of ${MAX_LEVEL}`}
         </span>
-        <span>{comfortableCount} / {poolSize} comfortable</span>
+        <span>{fluentCount} / {poolSize} fluent{limitLabel}</span>
       </div>
 
       {/* Progress bar */}

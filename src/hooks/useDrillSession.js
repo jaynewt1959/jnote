@@ -13,27 +13,34 @@
  * Returns:
  *   {
  *     currentNote,       // Note object currently on display
- *     feedback,          // { correct, noteLetter, noteId } | null
- *     progress,          // { currentLevel, poolSize, comfortableCount, isComplete }
+ *     noteSerial,        // increments on every note shown (restarts the countdown)
+ *     feedback,          // { correct, fluent, noteLetter, noteId } | null
+ *     progress,          // { currentLevel, poolSize, fluentCount, isComplete }
  *     levelUpMsg,        // string | null  ("Level 3 unlocked!")
+ *     fluentMs,          // reaction-time budget for score credit
  *     submitAnswer(letter | noteId),  // call with user's answer
  *     resetSession,
  *   }
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { getNextNote, recordAnswer, getProgress, reset, recordRT } from '../modules/spacedRepetition.js';
+import {
+  getNextNote, recordAnswer, getProgress, reset, recordRT, FLUENT_MS,
+} from '../modules/spacedRepetition.js';
 
 const FEEDBACK_MS  = 730;   // how long to show correct/wrong before advancing
 const AUDIO_LEAD   = 200;   // play next note audio this many ms before the visual
 const LEVELUP_MS   = 1800;  // how long to show "Level X unlocked!" toast
 const WANDER_MS    = 8000;  // RTs beyond this are attention-wandered; skip RT recording
 
-export function useDrillSession({ onNoteShown } = {}) {
+export function useDrillSession({ onNoteShown, onWrongAnswer } = {}) {
   const [currentNote, setCurrentNote]   = useState(null);
-  const [feedback,    setFeedback]      = useState(null);  // {correct, noteLetter, noteId}
+  const [feedback,    setFeedback]      = useState(null);  // {correct, fluent, noteLetter, noteId}
   const [progress,    setProgress]      = useState(() => getProgress());
   const [levelUpMsg,  setLevelUpMsg]    = useState(null);
+  // Bumped every time a note is displayed, so the countdown restarts even if
+  // the same note id were ever shown twice in a row.
+  const [noteSerial,  setNoteSerial]    = useState(0);
 
   // Track the last shown noteId to avoid immediate repeats
   const lastNoteId    = useRef(null);
@@ -52,6 +59,7 @@ export function useDrillSession({ onNoteShown } = {}) {
     pendingNote.current = null;
     setCurrentNote(note);
     setFeedback(null);
+    setNoteSerial(n => n + 1);
     locked.current = false;
     noteStartTime.current = Date.now(); // start reaction-time clock
     if (!audioAlreadyPlayed && onNoteShown) onNoteShown(note);
@@ -78,17 +86,22 @@ export function useDrillSession({ onNoteShown } = {}) {
       : answer.replace(/[^A-G]/g, '')[0]?.toUpperCase() ?? '';
 
     const correct = answerLetter === currentNote.name;
+    // Fire the error buzz synchronously inside the answer gesture — Safari
+    // will not start audio from a later timer if the context is still locked.
+    if (!correct && onWrongAnswer) onWrongAnswer();
+
     const reactionMs = noteStartTime.current ? Date.now() - noteStartTime.current : null;
     // If the user's attention wandered (RT too long), discard the RT so it
     // doesn't pollute stats. SR score still records — the answer still counts.
     const isWander = reactionMs !== null && reactionMs > WANDER_MS;
 
-    setFeedback({ correct, noteLetter: answerLetter, noteId: answer, reactionMs, isWander });
-
     // Record in SR engine (always); only record RT when attention was present
     if (reactionMs && !isWander) recordRT(currentNote.id, reactionMs, correct);
-    const { leveledUp, newLevel } = recordAnswer(currentNote.id, correct);
+    // Score credit requires the answer to be both correct and inside FLUENT_MS
+    const { leveledUp, newLevel, fluent } = recordAnswer(currentNote.id, correct, reactionMs);
     setProgress(getProgress());
+
+    setFeedback({ correct, fluent, noteLetter: answerLetter, noteId: answer, reactionMs, isWander });
 
     // Show level-up toast
     if (leveledUp) {
@@ -107,7 +120,7 @@ export function useDrillSession({ onNoteShown } = {}) {
 
     // Show next note visually at FEEDBACK_MS (audio already played via lead timer)
     setTimeout(() => showNextNote(next, true), FEEDBACK_MS);
-  }, [currentNote, showNextNote, onNoteShown]);
+  }, [currentNote, showNextNote, onNoteShown, onWrongAnswer]);
 
   const resetSession = useCallback(() => {
     reset();
@@ -121,9 +134,11 @@ export function useDrillSession({ onNoteShown } = {}) {
 
   return {
     currentNote,
+    noteSerial,
     feedback,
     progress,
     levelUpMsg,
+    fluentMs: FLUENT_MS,
     submitAnswer,
     resetSession,
   };

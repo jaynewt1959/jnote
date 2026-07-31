@@ -6,7 +6,7 @@
  */
 
 import { useState, useCallback } from 'react';
-import { touchAudio, playNote } from '../modules/audioEngine.js';
+import { touchAudio, playNote, playError } from '../modules/audioEngine.js';
 
 export function useAudio() {
   const [audioEnabled, setAudioEnabled] = useState(true);
@@ -27,9 +27,18 @@ export function useAudio() {
     playNote(noteId);
   }, [audioEnabled]);
 
+  /**
+   * Buzz for a wrong answer. Called from within the answer gesture, so the
+   * context is already unlocked by initFromGesture().
+   */
+  const playWrong = useCallback(() => {
+    if (!audioEnabled) return;
+    playError();
+  }, [audioEnabled]);
+
   const toggleAudio = useCallback(() => {
     setAudioEnabled(prev => !prev);
   }, []);
 
-  return { audioEnabled, toggleAudio, play, initFromGesture };
+  return { audioEnabled, toggleAudio, play, playWrong, initFromGesture };
 }

@@ -1,7 +1,10 @@
 /**
  * FeedbackBanner.jsx
  *
- * Shows "✓ C" in green or "✗ — that was G" in red.
+ * Three states:
+ *   green  ✓ C            — correct inside the fluency budget (scored)
+ *   amber  ✓ C · too slow — correct but over the budget (no credit)
+ *   red    ✗ — that was G
  * When feedback is null, renders a fixed-height placeholder so layout doesn't jump.
  */
 
@@ -10,8 +13,21 @@ export default function FeedbackBanner({ feedback, correctNote }) {
     return <div style={{ height: 44 }} />;
   }
 
-  const { correct, noteLetter, reactionMs, isWander } = feedback;
-  const rtLabel = isWander ? ' · —' : reactionMs ? ` · ${(reactionMs / 1000).toFixed(1)}s` : '';
+  const { correct, fluent, noteLetter, reactionMs, isWander } = feedback;
+  const rtLabel = isWander ? '—' : reactionMs ? `${(reactionMs / 1000).toFixed(1)}s` : '';
+
+  // Correct but over the budget: distinct amber so a stalled score is never
+  // mistaken for progress.
+  const slow = correct && !fluent;
+  const palette = slow
+    ? { background: '#fef3c7', color: '#b45309' }
+    : correct
+      ? { background: '#dcfce7', color: '#15803d' }
+      : { background: '#fee2e2', color: '#b91c1c' };
+
+  const detail = [rtLabel, slow ? 'too slow — no credit' : '']
+    .filter(Boolean)
+    .join(' · ');
 
   return (
     <div
@@ -22,8 +38,7 @@ export default function FeedbackBanner({ feedback, correctNote }) {
         justifyContent:'center',
         gap:           6,
         borderRadius:  8,
-        background:    correct ? '#dcfce7' : '#fee2e2',
-        color:         correct ? '#15803d' : '#b91c1c',
+        ...palette,
         padding:       '0 20px',
         transition:    'all 0.15s',
         userSelect:    'none',
@@ -33,7 +48,7 @@ export default function FeedbackBanner({ feedback, correctNote }) {
         {correct ? `✓ ${noteLetter}` : `✗ — that was ${correctNote?.name ?? ''}`}
       </span>
       <span style={{ fontSize: 13, fontWeight: 400, opacity: 0.75 }}>
-        {rtLabel}
+        {detail && `· ${detail}`}
       </span>
     </div>
   );

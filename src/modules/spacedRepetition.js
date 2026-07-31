@@ -5,30 +5,49 @@
  *
  * Per-note score: 0–5
  *   0 = unseen / very weak
- *   4 = comfortable (counts toward level advancement)
+ *   4 = fluent (counts toward level advancement)
  *   5 = mastered
  *
- * Correct answer: score + 1 (cap 5)
- * Wrong answer:   score - 1 (floor 0)
+ * Recognition must be both CORRECT and FAST. An answer only earns credit when
+ * it arrives within FLUENT_MS of the note appearing:
  *
- * Level advances when every note in the active pool reaches score ≥ 4.
+ *   Correct within FLUENT_MS: score + 1 (cap 5)
+ *   Correct but too slow:     no change  — no credit, no penalty
+ *   Wrong:                    score - 1 (floor 0)
+ *
+ * A slow-but-correct answer stalls progress rather than punishing it: the user
+ * knows the note, they just don't know it automatically yet.
+ *
+ * Level advances when every note in the active pool reaches score ≥ 4, i.e.
+ * 4 net fast identifications of every note in the pool.
  * Persists state to localStorage under key "jnote_state".
  */
 
 import { getNotesForLevel, MAX_LEVEL } from './noteData.js';
 
 const STORAGE_KEY = 'jnote_state';
-const MASTERY_THRESHOLD = 4;   // score needed to count a note as "comfortable"
+const STATE_VERSION = 2;       // bump to invalidate saved state after a rule change
+const MASTERY_THRESHOLD = 4;   // score needed to count a note as "fluent"
 const MAX_SCORE = 5;
+
+/**
+ * Reaction-time budget for a correct answer to earn score credit, in ms.
+ * Measured from the note appearing to the answer being submitted, so it has to
+ * cover read + decide + press. 3 s is a generous reaction window while still
+ * being short enough that it can only be met by near-automatic recall —
+ * counting on fingers up the ledger lines does not fit inside it.
+ */
+export const FLUENT_MS = 3000;
 
 // ─── Internal state ────────────────────────────────────────────────────────
 
 function defaultState() {
   return {
+    version:      STATE_VERSION,
     currentLevel: 1,
-    noteStates: {},   // noteId → { score, attempts }
-    rtLog:       [],  // { noteId, ms, correct, ts }[] — capped at 500
-    completedAt: null
+    noteStates:   {},   // noteId → { score, attempts, fluent }
+    rtLog:        [],   // { noteId, ms, correct, ts }[] — capped at 500
+    completedAt:  null
   };
 }
 
@@ -36,7 +55,12 @@ function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return defaultState();
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    // Scores saved before the fluency rule were earned without any time
+    // pressure, so they say nothing about recognition speed. Discard them
+    // rather than grant credit the user never demonstrated.
+    if (parsed?.version !== STATE_VERSION) return defaultState();
+    return parsed;
   } catch {
     return defaultState();
   }
@@ -57,9 +81,20 @@ function ensureNoteStates(state) {
   const pool = getNotesForLevel(state.currentLevel);
   for (const note of pool) {
     if (!state.noteStates[note.id]) {
-      state.noteStates[note.id] = { score: 0, attempts: 0 };
+      state.noteStates[note.id] = { score: 0, attempts: 0, fluent: 0 };
     }
   }
+}
+
+/**
+ * Was this answer fast enough to earn credit?
+ * A missing reaction time (timer never started) is treated as fluent — the
+ * failure mode of a broken clock should not be an unprogressable level.
+ *
+ * @param {number|null|undefined} reactionMs
+ */
+export function isFluent(reactionMs) {
+  return reactionMs == null || reactionMs <= FLUENT_MS;
 }
 
 // ─── Public API ────────────────────────────────────────────────────────────
@@ -104,33 +139,40 @@ export function getNextNote(previousNoteId = null) {
 }
 
 /**
- * Record whether the user answered correctly for a note.
- * Automatically advances the level if all notes are comfortable.
+ * Record whether the user answered correctly for a note, and how fast.
+ * Only a correct answer inside FLUENT_MS raises the score.
+ * Automatically advances the level if every note in the pool is fluent.
  *
  * @param {string} noteId
  * @param {boolean} correct
- * @returns {{ leveledUp: boolean, newLevel: number }}
+ * @param {number|null} [reactionMs]  ms from note display to answer
+ * @returns {{ leveledUp: boolean, newLevel: number, fluent: boolean, scoreChange: number }}
  */
-export function recordAnswer(noteId, correct) {
+export function recordAnswer(noteId, correct, reactionMs = null) {
   ensureNoteStates(_state);
-  const ns = _state.noteStates[noteId] ?? { score: 0, attempts: 0 };
+  const ns = _state.noteStates[noteId] ?? { score: 0, attempts: 0, fluent: 0 };
   ns.attempts += 1;
 
-  if (correct) {
+  const fluent = correct && isFluent(reactionMs);
+  const previousScore = ns.score;
+
+  if (fluent) {
+    ns.fluent = (ns.fluent ?? 0) + 1;
     ns.score = Math.min(MAX_SCORE, ns.score + 1);
-  } else {
+  } else if (!correct) {
     ns.score = Math.max(0, ns.score - 1);
   }
+  // Correct but slow: score untouched — the note stays in heavy rotation.
   _state.noteStates[noteId] = ns;
 
   // Check for level advancement
   let leveledUp = false;
   if (_state.currentLevel < MAX_LEVEL) {
     const pool = getNotesForLevel(_state.currentLevel);
-    const allComfortable = pool.every(
+    const allFluent = pool.every(
       n => (_state.noteStates[n.id]?.score ?? 0) >= MASTERY_THRESHOLD
     );
-    if (allComfortable) {
+    if (allFluent) {
       _state.currentLevel += 1;
       leveledUp = true;
       // Initialise states for newly unlocked notes
@@ -139,7 +181,12 @@ export function recordAnswer(noteId, correct) {
   }
 
   saveState(_state);
-  return { leveledUp, newLevel: _state.currentLevel };
+  return {
+    leveledUp,
+    newLevel:    _state.currentLevel,
+    fluent,
+    scoreChange: ns.score - previousScore,
+  };
 }
 
 /**
@@ -149,21 +196,21 @@ export function recordAnswer(noteId, correct) {
  *   currentLevel: number,
  *   noteStates: Record<string, {score: number, attempts: number}>,
  *   poolSize: number,
- *   comfortableCount: number,
+ *   fluentCount: number,
  *   isComplete: boolean
  * }}
  */
 export function getProgress() {
   ensureNoteStates(_state);
   const pool = getNotesForLevel(_state.currentLevel);
-  const comfortableCount = pool.filter(
+  const fluentCount = pool.filter(
     n => (_state.noteStates[n.id]?.score ?? 0) >= MASTERY_THRESHOLD
   ).length;
   return {
     currentLevel: _state.currentLevel,
     noteStates: { ..._state.noteStates },
     poolSize: pool.length,
-    comfortableCount,
+    fluentCount,
     isComplete: _state.currentLevel >= MAX_LEVEL &&
       pool.every(n => (_state.noteStates[n.id]?.score ?? 0) >= MASTERY_THRESHOLD),
   };

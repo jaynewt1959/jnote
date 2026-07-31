@@ -8,6 +8,7 @@ import PianoKeyboard     from "./components/PianoKeyboard.jsx";
 import NoteButtons       from "./components/NoteButtons.jsx";
 import FeedbackBanner    from "./components/FeedbackBanner.jsx";
 import LevelProgress     from "./components/LevelProgress.jsx";
+import CountdownBar      from "./components/CountdownBar.jsx";
 import { useDrillSession } from "./hooks/useDrillSession.js";
 import { useAudio }        from "./hooks/useAudio.js";
 import HintLabel           from "./components/HintLabel.jsx";
@@ -16,21 +17,31 @@ import { getStats }        from "./modules/spacedRepetition.js";
 
 export default function App() {
   const [showHint, setShowHint] = useState(true);
-  const { audioEnabled, toggleAudio, play, initFromGesture } = useAudio();
+  const { audioEnabled, toggleAudio, play, playWrong, initFromGesture } = useAudio();
 
   // onNoteShown is called from setTimeout — audio works here once context is unlocked
   const handleNoteShown = useCallback((note) => {
     play(note.toneNote);
   }, [play]);
 
+  // Error buzz on a wrong answer (fires inside the answer gesture)
+  const handleWrongAnswer = useCallback(() => {
+    playWrong();
+  }, [playWrong]);
+
   const {
     currentNote,
+    noteSerial,
     feedback,
     progress,
     levelUpMsg,
+    fluentMs,
     submitAnswer,
     resetSession,
-  } = useDrillSession({ onNoteShown: handleNoteShown });
+  } = useDrillSession({
+    onNoteShown:   handleNoteShown,
+    onWrongAnswer: handleWrongAnswer,
+  });
 
   // Wrap submitAnswer: call initFromGesture SYNCHRONOUSLY first (Safari audio unlock)
   const handleAnswer = useCallback((answer) => {
@@ -79,6 +90,13 @@ export default function App() {
         <GrandStaffDisplay noteId={currentNote?.id} />
       </section>
 
+      <CountdownBar
+        noteId={currentNote?.id}
+        serial={noteSerial}
+        durationMs={fluentMs}
+        active={!feedback && !!currentNote}
+      />
+
       <HintLabel note={currentNote} showHint={showHint} />
 
       <section className="feedback-section">
@@ -86,7 +104,7 @@ export default function App() {
       </section>
 
       <section className="progress-section">
-        <LevelProgress progress={progress} />
+        <LevelProgress progress={progress} fluentMs={fluentMs} />
         <StatsBar stats={stats} />
       </section>
 
