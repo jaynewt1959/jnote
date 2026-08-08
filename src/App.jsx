@@ -20,19 +20,57 @@ import { isAudioReady }    from "./modules/audioEngine.js";
 // screen. Only a gesture that turns out not to be an answer gets the replay.
 const UNLOCK_REPLAY_MS = 300;
 
+/**
+ * How long after a wrong answer the correct pitch sounds. The error buzz runs
+ * 360 ms, so this clears it, and the next note is not revealed for far longer
+ * — the two never overlap.
+ */
+const WRONG_PITCH_MS = 400;
+
+/**
+ * When notes sound.
+ *
+ *   answer — after the answer, as reinforcement (default)
+ *   note   — as the note appears, for ear-plus-eye association
+ *   off    — silent
+ *
+ * `answer` is the default because the drill only ever asks for the letter, so
+ * a pitch played before the answer hands it over: anyone with even rough pitch
+ * recognition can score without reading the staff at all, and the reading
+ * skill silently stops being trained. Sounding it afterwards keeps the
+ * association without letting it stand in for the answer. `note` is kept for
+ * deliberate ear training.
+ */
+const SOUND_MODES = ['answer', 'note', 'off'];
+const SOUND_LABELS = {
+  answer: 'Sound: on answer',
+  note:   'Sound: on note',
+  off:    'Sound: off',
+};
+
 export default function App() {
-  const [showHint, setShowHint] = useState(true);
-  const { audioEnabled, toggleAudio, play, playWrong, initFromGesture } = useAudio();
+  const [showHint,  setShowHint]  = useState(true);
+  const [soundMode, setSoundMode] = useState('answer');
+  const { play, playWrong, initFromGesture } = useAudio(soundMode !== 'off');
 
   // onNoteShown is called from setTimeout — audio works here once context is unlocked
   const handleNoteShown = useCallback((note) => {
-    play(note.toneNote);
-  }, [play]);
+    if (soundMode === 'note') play(note.toneNote);
+  }, [soundMode, play]);
 
   // Error buzz on a wrong answer (fires inside the answer gesture)
   const handleWrongAnswer = useCallback(() => {
     playWrong();
   }, [playWrong]);
+
+  // The note sounds after the answer in `answer` mode. On a wrong answer it
+  // follows the buzz, which makes it a correction: this is what the note you
+  // just misread sounds like.
+  const handleAnswerSound = useCallback((note, correct) => {
+    if (soundMode !== 'answer') return;
+    if (correct) play(note.toneNote);
+    else setTimeout(() => play(note.toneNote), WRONG_PITCH_MS);
+  }, [soundMode, play]);
 
   const {
     currentNote,
@@ -40,13 +78,20 @@ export default function App() {
     feedback,
     progress,
     levelUpMsg,
-    fluentMs,
+    budgetMs,
+    budgetExpired,
     submitAnswer,
     resetSession,
   } = useDrillSession({
     onNoteShown:   handleNoteShown,
     onWrongAnswer: handleWrongAnswer,
+    onAnswer:      handleAnswerSound,
   });
+
+  // Hints are earned by the clock, not chosen. They stay hidden until the
+  // note's budget lapses, so every note is attempted cold, but a note that
+  // did not come automatically is scaffolded rather than left to a guess.
+  const hintVisible = showHint && budgetExpired && !feedback;
 
   // Wrap submitAnswer: call initFromGesture SYNCHRONOUSLY first (Safari audio unlock)
   const handleAnswer = useCallback((answer) => {
@@ -54,11 +99,15 @@ export default function App() {
     submitAnswer(answer);
   }, [initFromGesture, submitAnswer]);
 
-  // ── First-gesture audio unlock ─────────────────────────────────────────
+  // ── First-gesture audio unlock ────────────────────────────────────
   // Every browser keeps the AudioContext locked until the user interacts, and
   // the first note is drawn on page load — before any interaction exists. Its
   // audio is therefore always lost. Unlock on the first gesture anywhere and
   // sound whatever note is on screen, so the drill never opens in silence.
+  //
+  // Only relevant in `note` mode. In `answer` mode nothing is supposed to
+  // sound before an answer, and replaying the on-screen note here would hand
+  // over the very first answer; the answer gesture unlocks the context itself.
   const liveNote = useRef(null);
   const liveFeedback = useRef(null);
   const liveSerial = useRef(0);
@@ -67,7 +116,7 @@ export default function App() {
   useEffect(() => { liveSerial.current = noteSerial; }, [noteSerial]);
 
   useEffect(() => {
-    if (isAudioReady()) return;
+    if (soundMode !== 'note' || isAudioReady()) return;
 
     let replayTimer = null;
 
@@ -99,7 +148,7 @@ export default function App() {
       teardown();
       if (replayTimer) clearTimeout(replayTimer);
     };
-  }, [initFromGesture, play]);
+  }, [initFromGesture, play, soundMode]);
 
   // Keyboard shortcuts: A–G submit that letter as the answer
   useEffect(() => {
@@ -133,6 +182,12 @@ export default function App() {
     }
   }
 
+  function cycleSound() {
+    // Unlock inside the gesture, so the mode just chosen can sound immediately.
+    initFromGesture();
+    setSoundMode(m => SOUND_MODES[(SOUND_MODES.indexOf(m) + 1) % SOUND_MODES.length]);
+  }
+
   return (
     <div className="app-shell">
       <header className="app-header">
@@ -141,24 +196,24 @@ export default function App() {
       </header>
 
       <section className="staff-section">
-        <GrandStaffDisplay noteId={currentNote?.id} showLedgerCue={showHint} />
+        <GrandStaffDisplay noteId={currentNote?.id} showLedgerCue={hintVisible} />
       </section>
 
       <CountdownBar
         noteId={currentNote?.id}
         serial={noteSerial}
-        durationMs={fluentMs}
+        durationMs={budgetMs}
         active={!feedback && !!currentNote}
       />
 
-      <HintLabel note={currentNote} showHint={showHint} />
+      <HintLabel note={currentNote} showHint={hintVisible} />
 
       <section className="feedback-section">
         <FeedbackBanner feedback={feedback} correctNote={currentNote} />
       </section>
 
       <section className="progress-section">
-        <LevelProgress progress={progress} fluentMs={fluentMs} />
+        <LevelProgress progress={progress} />
         <StatsBar stats={stats} />
       </section>
 
@@ -176,8 +231,11 @@ export default function App() {
       </section>
 
       <section className="controls-section">
-        <button className={"ctrl-btn " + (audioEnabled ? "active" : "")} onClick={toggleAudio}>
-          {audioEnabled ? "Audio on" : "Audio off"}
+        <button
+          className={"ctrl-btn " + (soundMode !== 'off' ? "active" : "")}
+          onClick={cycleSound}
+        >
+          {SOUND_LABELS[soundMode]}
         </button>
         <button className={"ctrl-btn " + (showHint ? "active" : "")} onClick={() => setShowHint(h => !h)}>
           {showHint ? "Hints on" : "Hints off"}

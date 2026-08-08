@@ -93,43 +93,109 @@ const RAW_NOTES = [
   // (2nd ledger above) sits where the eye expects treble-register notes.
   // Capped at 4 ledger lines, which covers the common cases without becoming
   // visually hostile.
+  //
+  // ── Grouped by pattern, not by ledger count ────────────────────────────
+  // These items are grouped so that each level is one alphabetic chunk that
+  // can be memorised whole. Continuing a staff's own line letters outward
+  // gives a 4-letter sequence, and the spaces between those ledgers give
+  // another. Earlier the levels paired one ledger-line note with one
+  // ledger-space note, so neither sequence was ever met intact and every
+  // item had to be counted out individually — which no time budget can fit.
+  //
+  // Every item carries a `chunk` key; see CHUNKS below for the mnemonics.
 
-  // ── Levels 13–16: left hand climbing above the bass staff ───────────────
-  { id: 'C4@bass', name: 'C', octave: 4, clef: 'bass', level: 13, vexKey: 'c/4', toneNote: 'C4', isLandmark: false, crossStaff: true },
-  { id: 'D4@bass', name: 'D', octave: 4, clef: 'bass', level: 13, vexKey: 'd/4', toneNote: 'D4', isLandmark: false, crossStaff: true },
+  // ── Level 13: ledger LINES above the bass staff — C E G B ───────────────
+  // The bass staff's own lines are G B D F A; carrying on upward gives
+  // C4 E4 G4 B4.
+  { id: 'C4@bass', name: 'C', octave: 4, clef: 'bass', level: 13, vexKey: 'c/4', toneNote: 'C4', isLandmark: false, chunk: 'linesAboveBass' },
+  { id: 'E4@bass', name: 'E', octave: 4, clef: 'bass', level: 13, vexKey: 'e/4', toneNote: 'E4', isLandmark: false, chunk: 'linesAboveBass' },
+  { id: 'G4@bass', name: 'G', octave: 4, clef: 'bass', level: 13, vexKey: 'g/4', toneNote: 'G4', isLandmark: false, chunk: 'linesAboveBass' },
+  { id: 'B4@bass', name: 'B', octave: 4, clef: 'bass', level: 13, vexKey: 'b/4', toneNote: 'B4', isLandmark: false, chunk: 'linesAboveBass' },
 
-  { id: 'E4@bass', name: 'E', octave: 4, clef: 'bass', level: 14, vexKey: 'e/4', toneNote: 'E4', isLandmark: false, crossStaff: true },
-  { id: 'F4@bass', name: 'F', octave: 4, clef: 'bass', level: 14, vexKey: 'f/4', toneNote: 'F4', isLandmark: false, crossStaff: true },
+  // ── Level 14: ledger SPACES above the bass staff — D F A C ──────────────
+  // The spaces between (and just beyond) those ledger lines. B3 is not here:
+  // it sits in the space directly above the bass top line, needs no ledger,
+  // and is already taught at level 7.
+  { id: 'D4@bass', name: 'D', octave: 4, clef: 'bass', level: 14, vexKey: 'd/4', toneNote: 'D4', isLandmark: false, chunk: 'spacesAboveBass' },
+  { id: 'F4@bass', name: 'F', octave: 4, clef: 'bass', level: 14, vexKey: 'f/4', toneNote: 'F4', isLandmark: false, chunk: 'spacesAboveBass' },
+  { id: 'A4@bass', name: 'A', octave: 4, clef: 'bass', level: 14, vexKey: 'a/4', toneNote: 'A4', isLandmark: false, chunk: 'spacesAboveBass' },
+  { id: 'C5@bass', name: 'C', octave: 5, clef: 'bass', level: 14, vexKey: 'c/5', toneNote: 'C5', isLandmark: false, chunk: 'spacesAboveBass' },
 
-  { id: 'G4@bass', name: 'G', octave: 4, clef: 'bass', level: 15, vexKey: 'g/4', toneNote: 'G4', isLandmark: false, crossStaff: true },
-  { id: 'A4@bass', name: 'A', octave: 4, clef: 'bass', level: 15, vexKey: 'a/4', toneNote: 'A4', isLandmark: false, crossStaff: true },
+  // ── Level 15: ledger LINES below the treble staff — C A F D ─────────────
+  // The treble staff's own lines are E G B D F; carrying on downward gives
+  // C4 A3 F3 D3. C4 is not repeated here: middle C as the first ledger line
+  // below the treble staff is exactly the level-1 `C4` item, so the drilled
+  // remainder of the sequence is A3 F3 D3.
+  { id: 'A3@treble', name: 'A', octave: 3, clef: 'treble', level: 15, vexKey: 'a/3', toneNote: 'A3', isLandmark: false, chunk: 'linesBelowTreble' },
+  { id: 'F3@treble', name: 'F', octave: 3, clef: 'treble', level: 15, vexKey: 'f/3', toneNote: 'F3', isLandmark: false, chunk: 'linesBelowTreble' },
+  { id: 'D3@treble', name: 'D', octave: 3, clef: 'treble', level: 15, vexKey: 'd/3', toneNote: 'D3', isLandmark: false, chunk: 'linesBelowTreble' },
 
-  { id: 'B4@bass', name: 'B', octave: 4, clef: 'bass', level: 16, vexKey: 'b/4', toneNote: 'B4', isLandmark: false, crossStaff: true },
-  { id: 'C5@bass', name: 'C', octave: 5, clef: 'bass', level: 16, vexKey: 'c/5', toneNote: 'C5', isLandmark: false, crossStaff: true },
-
-  // ── Levels 17–19: right hand descending below the treble staff ──────────
-  // Note there is no "C4@treble": middle C on the treble staff is already the
-  // first ledger line below it, taught as C4 back in level 1. The treble side
-  // of the overlap therefore starts one step lower, at B3.
-  { id: 'B3@treble', name: 'B', octave: 3, clef: 'treble', level: 17, vexKey: 'b/3', toneNote: 'B3', isLandmark: false, crossStaff: true },
-  { id: 'A3@treble', name: 'A', octave: 3, clef: 'treble', level: 17, vexKey: 'a/3', toneNote: 'A3', isLandmark: false, crossStaff: true },
-
-  { id: 'G3@treble', name: 'G', octave: 3, clef: 'treble', level: 18, vexKey: 'g/3', toneNote: 'G3', isLandmark: false, crossStaff: true },
-  { id: 'F3@treble', name: 'F', octave: 3, clef: 'treble', level: 18, vexKey: 'f/3', toneNote: 'F3', isLandmark: false, crossStaff: true },
-
-  { id: 'E3@treble', name: 'E', octave: 3, clef: 'treble', level: 19, vexKey: 'e/3', toneNote: 'E3', isLandmark: false, crossStaff: true },
-  { id: 'D3@treble', name: 'D', octave: 3, clef: 'treble', level: 19, vexKey: 'd/3', toneNote: 'D3', isLandmark: false, crossStaff: true },
-  { id: 'C3@treble', name: 'C', octave: 3, clef: 'treble', level: 19, vexKey: 'c/3', toneNote: 'C3', isLandmark: false, crossStaff: true },
+  // ── Level 16: ledger SPACES below the treble staff — B G E C ────────────
+  { id: 'B3@treble', name: 'B', octave: 3, clef: 'treble', level: 16, vexKey: 'b/3', toneNote: 'B3', isLandmark: false, chunk: 'spacesBelowTreble' },
+  { id: 'G3@treble', name: 'G', octave: 3, clef: 'treble', level: 16, vexKey: 'g/3', toneNote: 'G3', isLandmark: false, chunk: 'spacesBelowTreble' },
+  { id: 'E3@treble', name: 'E', octave: 3, clef: 'treble', level: 16, vexKey: 'e/3', toneNote: 'E3', isLandmark: false, chunk: 'spacesBelowTreble' },
+  { id: 'C3@treble', name: 'C', octave: 3, clef: 'treble', level: 16, vexKey: 'c/3', toneNote: 'C3', isLandmark: false, chunk: 'spacesBelowTreble' },
 ];
 
 /**
+ * The cross-staff reading patterns, one per level 13–16.
+ *
+ * `letters` is the full sequence outward from the staff, indexed by ledger
+ * count, so `letters[n - 1]` is the note sitting at the nth ledger line (for
+ * a `lines` chunk) or in the space beyond the nth ledger (for a `spaces`
+ * chunk). The sequence includes members that are not themselves drill items:
+ * middle C heads `linesBelowTreble` because the pattern is incomplete without
+ * it, even though it is drilled as the level-1 `C4`. Positions therefore stay
+ * honest — "the 3rd" always means the 3rd one you actually see on the page.
+ *
+ * `clef` and `onLine` record what every member of the chunk has in common,
+ * so `scripts/check-curriculum.mjs` can verify the letters against the staff
+ * geometry rather than trusting them.
+ *
+ * Hint text is built from these instead of from counting instructions.
+ * Recognising a sequence and a position within it can be done at a glance;
+ * stepping up six staff positions from a landmark cannot fit any workable
+ * time budget, so the old "count up from A3" hint could only ever produce an
+ * answer that arrived too late to earn credit.
+ */
+export const CHUNKS = {
+  linesAboveBass: {
+    label:   'Bass ledger lines',
+    letters: ['C', 'E', 'G', 'B'],
+    clef:    'bass',
+    onLine:  true,
+  },
+  spacesAboveBass: {
+    label:   'Bass ledger spaces',
+    letters: ['D', 'F', 'A', 'C'],
+    clef:    'bass',
+    onLine:  false,
+  },
+  linesBelowTreble: {
+    label:   'Treble ledger lines',
+    letters: ['C', 'A', 'F', 'D'],
+    clef:    'treble',
+    onLine:  true,
+  },
+  spacesBelowTreble: {
+    label:   'Treble ledger spaces',
+    letters: ['B', 'G', 'E', 'C'],
+    clef:    'treble',
+    onLine:  false,
+  },
+};
+
+/**
  * The drill catalogue. `pitch` and `crossStaff` are derived so the literals
- * above stay readable and the two can never drift out of sync.
+ * above stay readable and the two can never drift out of sync. `crossStaff`
+ * now follows from chunk membership: belonging to a reading pattern is what
+ * makes an item cross-staff, so the flag cannot be forgotten on a new row.
  */
 export const NOTES = RAW_NOTES.map(n => ({
   ...n,
   pitch:      `${n.name}${n.octave}`,
-  crossStaff: n.crossStaff ?? false,
+  chunk:      n.chunk ?? null,
+  crossStaff: n.chunk != null,
 }));
 
 /** Lookup map: noteId → note object */
@@ -144,7 +210,12 @@ export function getNotesForLevel(level) {
  * The maximum level defined in the curriculum.
  * After completion, the phase-2 (accidentals) flag is set.
  */
-export const MAX_LEVEL = 19;
+export const MAX_LEVEL = 16;
+
+/** Items first introduced at exactly this level (the level's "new" items) */
+export function getNewNotesForLevel(level) {
+  return NOTES.filter(n => n.level === level);
+}
 
 // ─── Staff geometry ────────────────────────────────────────────────────────
 
@@ -187,4 +258,15 @@ export function ledgerPosition(note) {
   if (line > 5) return { direction: 'above', count: Math.floor(line - 5), onLine };
   if (line < 1) return { direction: 'below', count: Math.floor(1 - line), onLine };
   return { direction: null, count: 0, onLine };
+}
+
+/**
+ * The note's 1-based position within its reading chunk, which is simply its
+ * ledger count: the 3rd ledger line, or the space beyond the 3rd ledger.
+ * Returns null for an item that belongs to no chunk.
+ */
+export function chunkIndex(note) {
+  if (!note?.chunk) return null;
+  const { count } = ledgerPosition(note);
+  return count > 0 ? count : null;
 }

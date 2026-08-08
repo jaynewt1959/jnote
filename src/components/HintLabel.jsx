@@ -3,21 +3,27 @@
  *
  * Shows a text explanation of the quiz note's position — e.g.
  *   "2 steps above G4 (treble line 2)"
- *   "Bass staff — on 2nd ledger above (count up from A3)"
+ *   "Bass ledger lines: C-E-G-B — this is the 3rd"
  *
- * The landmark is NOT shown on the staff (that caused confusion). Instead this
- * label tells you: find the anchor you know, then count to the coloured note.
+ * The reference note is NOT drawn on the staff (that caused confusion). This
+ * label is the whole hint.
  *
  * Two hint styles, because the two skills are different:
  *
- *   Normal notes      — counted from the nearest landmark in the same clef.
- *   Cross-staff notes — counted outwards from the owning staff's edge line.
- *     For a note stranded in the gap between the staves, "which staff owns
- *     this?" is the actual question, so the hint leads with the staff name
- *     and the ledger count rather than a landmark that may be far away.
+ *   Normal notes      — located from the nearest landmark in the same clef.
+ *   Cross-staff notes — named by their reading pattern and position in it.
+ *     The hint used to say "count up from A3", which was an instruction to do
+ *     the one thing that cannot earn credit: counting six staff positions
+ *     outward takes longer than any budget allows, so the hint could only ever
+ *     produce a late answer. Naming the sequence and the position within it is
+ *     something the eye can do at a glance instead.
+ *
+ * Visibility is driven by the budget expiring, not by a manual toggle — see
+ * App.jsx. Every note is attempted cold, and the hint arrives only once the
+ * attempt has demonstrably not come automatically.
  */
 
-import { NOTES, diatonicPos, ledgerPosition } from '../modules/noteData.js';
+import { NOTES, diatonicPos, CHUNKS, chunkIndex } from '../modules/noteData.js';
 
 // Concise landmark descriptions — short enough to stay on one line
 const LANDMARK_DESC = {
@@ -31,16 +37,6 @@ const LANDMARK_DESC = {
   F3: 'bass line 4',
   G2: 'bass bottom line',
   C2: '2nd ledger below bass',
-};
-
-/**
- * Where cross-staff counting starts: the staff line the ledger lines grow
- * out from. Bass notes climb from the bass top line, treble notes fall from
- * the treble bottom line.
- */
-const STAFF_EDGE = {
-  bass:   { label: 'Bass',   anchor: 'A3', verb: 'up'   },
-  treble: { label: 'Treble', anchor: 'E4', verb: 'down' },
 };
 
 const ORDINALS = ['0th', '1st', '2nd', '3rd', '4th', '5th', '6th'];
@@ -90,16 +86,10 @@ function buildHintText(note, showHint) {
 }
 
 function crossStaffHint(note) {
-  const edge = STAFF_EDGE[note.clef];
-  const { direction, count, onLine } = ledgerPosition(note);
-  if (!edge || !direction) return null;
+  const chunk = CHUNKS[note.chunk];
+  const index = chunkIndex(note);
+  if (!chunk || !index) return null;
 
-  const ord = ORDINALS[count] ?? `${count}th`;
-  // "on the 2nd ledger" vs "above/below the 2nd ledger" — the space beyond
-  // the last ledger line is a distinct position and reads very differently.
-  const place = onLine
-    ? `on ${ord} ledger ${direction}`
-    : `${direction} ${ord} ledger`;
-
-  return <>💡 {edge.label} staff — {place} (count {edge.verb} from {edge.anchor})</>;
+  const ord = ORDINALS[index] ?? `${index}th`;
+  return <>💡 {chunk.label}: {chunk.letters.join('-')} — this is the {ord}</>;
 }

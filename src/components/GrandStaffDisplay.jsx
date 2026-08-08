@@ -18,8 +18,16 @@ const WIDTH        = 460;
 const HEIGHT       = 400;  // extra height for many ledger lines above/below
 const STAFF_Y      = 70;   // top margin so high ledger-line notes aren't clipped
 const START_X      = 40;   // left margin (brace needs ~40px)
-const NOTE_COLOR          = '#2563eb';  // blue for regular notes
-const LANDMARK_NOTE_COLOR = '#16a34a';  // green for landmark notes
+/**
+ * Every quiz note is drawn in the same blue.
+ *
+ * Landmarks used to be drawn green, to mark the anchors the hints told you to
+ * count from. Nothing counts from an anchor any more — cross-staff hints name
+ * a letter pattern instead — so a second colour only competed for attention
+ * with the note actually being read, and gave away a fact about the note
+ * before it had been identified.
+ */
+const NOTE_COLOR   = '#2563eb';
 const REST_PITCH   = 'B4';       // nominal pitch VexFlow uses for rests (ignored)
 const REST_PITCH_B = 'B2';       // for bass rest
 
@@ -89,16 +97,15 @@ export default function GrandStaffDisplay({ noteId, showLedgerCue = false }) {
       const trebleNotes = score.notes(trebleStr, { stem: 'up' });
       const bassNotes   = score.notes(bassStr,   { clef: 'bass', stem: 'down' });
 
-      // Apply colour to the target note (green for landmarks, blue otherwise)
-      const noteColor = note.isLandmark ? LANDMARK_NOTE_COLOR : NOTE_COLOR;
+      // Colour the target note
       const target = note.clef === 'treble' ? trebleNotes[0] : bassNotes[0];
-      target?.setStyle({ fillStyle: noteColor, strokeStyle: noteColor });
+      target?.setStyle({ fillStyle: NOTE_COLOR, strokeStyle: NOTE_COLOR });
 
       // Ledger lines default to grey and are drawn from the owning stave
       // outwards. Tinting them to match the notehead spells out which staff
       // the note belongs to — the whole difficulty of a cross-staff note.
       if (showLedgerCue) {
-        target?.setLedgerLineStyle({ strokeStyle: noteColor, lineWidth: 2 });
+        target?.setLedgerLineStyle({ strokeStyle: NOTE_COLOR, lineWidth: 2 });
       }
 
       const trebleVoices = [score.voice(trebleNotes, { time: '4/4' })];

@@ -2,8 +2,8 @@
  * FeedbackBanner.jsx
  *
  * Three states:
- *   green  ✓ C            — correct inside the fluency budget (scored)
- *   amber  ✓ C · too slow — correct but over the budget (no credit)
+ *   green  ✓ C                   — correct inside the note's budget (scored)
+ *   amber  ✓ C · 3.9s · over 3.0s — correct but over the budget (no credit)
  *   red    ✗ — that was G
  * When feedback is null, renders a fixed-height placeholder so layout doesn't jump.
  */
@@ -13,7 +13,7 @@ export default function FeedbackBanner({ feedback, correctNote }) {
     return <div style={{ height: 44 }} />;
   }
 
-  const { correct, fluent, noteLetter, reactionMs, isWander } = feedback;
+  const { correct, fluent, noteLetter, reactionMs, isWander, budgetMs } = feedback;
   const rtLabel = isWander ? '—' : reactionMs ? `${(reactionMs / 1000).toFixed(1)}s` : '';
 
   // Correct but over the budget: distinct amber so a stalled score is never
@@ -25,7 +25,13 @@ export default function FeedbackBanner({ feedback, correctNote }) {
       ? { background: '#dcfce7', color: '#15803d' }
       : { background: '#fee2e2', color: '#b91c1c' };
 
-  const detail = [rtLabel, slow ? 'too slow — no credit' : '']
+  // Name the budget that was actually missed. It varies per note now, so
+  // "too slow" on its own leaves the target invisible.
+  const slowLabel = slow
+    ? budgetMs ? `over ${(budgetMs / 1000).toFixed(1)}s — no credit` : 'too slow — no credit'
+    : '';
+
+  const detail = [rtLabel, slowLabel]
     .filter(Boolean)
     .join(' · ');
 
