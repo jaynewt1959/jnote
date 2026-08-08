@@ -8,18 +8,27 @@
  * called (Continue button, click, or Enter/Space) to move on.
  */
 
+import { useEffect } from 'react';
 import { explanationText } from '../modules/explanation.js';
 import ExplanationDiagram from './ExplanationDiagram.jsx';
 
 export default function ExplanationPanel({ explanation, visible, onDismiss, onPlayNote }) {
-  if (!visible || !explanation) return null;
-
-  function handleKeyDown(e) {
-    if (e.key === 'Enter' || e.key === ' ') {
+  // Enter/Space dismiss from anywhere while the panel is up — the Continue
+  // button need not be focused. preventDefault also suppresses the browser's
+  // native activation of whatever element happens to hold focus (including
+  // the Continue button), so the panel is never dismissed twice by one press.
+  useEffect(() => {
+    if (!visible) return undefined;
+    function onKeyDown(e) {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
       e.preventDefault();
       onDismiss();
     }
-  }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [visible, onDismiss]);
+
+  if (!visible || !explanation) return null;
 
   return (
     <div
@@ -27,7 +36,6 @@ export default function ExplanationPanel({ explanation, visible, onDismiss, onPl
       role="button"
       tabIndex={0}
       onClick={onDismiss}
-      onKeyDown={handleKeyDown}
     >
       <p className="explanation-panel__text">{explanationText(explanation)}</p>
       <ExplanationDiagram explanation={explanation} onPlayNote={onPlayNote} />
