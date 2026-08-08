@@ -227,6 +227,18 @@ export function diatonicPos(note) {
   return note.octave * 7 + LETTER_INDEX[note.name];
 }
 
+const LETTER_ORDER = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+
+/**
+ * Inverse of `diatonicPos`: the note letter + octave sitting at a given
+ * diatonic position. Used to walk step-by-step from a landmark/reference
+ * note to a target note for the mistake-explanation diagram.
+ */
+export function noteAtDiatonicPos(pos) {
+  const letterIdx = ((pos % 7) + 7) % 7;
+  return { name: LETTER_ORDER[letterIdx], octave: Math.floor(pos / 7) };
+}
+
 // Diatonic position of each clef's bottom staff line: treble E4, bass G2.
 const BOTTOM_LINE_POS = {
   treble: diatonicPos({ octave: 4, name: 'E' }),

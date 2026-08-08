@@ -2,7 +2,7 @@
  * App.jsx - jnote Grand Staff Note Trainer
  */
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import GrandStaffDisplay from "./components/GrandStaffDisplay.jsx";
 import PianoKeyboard     from "./components/PianoKeyboard.jsx";
 import NoteButtons       from "./components/NoteButtons.jsx";
@@ -11,10 +11,11 @@ import LevelProgress     from "./components/LevelProgress.jsx";
 import CountdownBar      from "./components/CountdownBar.jsx";
 import { useDrillSession } from "./hooks/useDrillSession.js";
 import { useAudio }        from "./hooks/useAudio.js";
-import HintLabel           from "./components/HintLabel.jsx";
+import ExplanationPanel    from "./components/ExplanationPanel.jsx";
 import StatsBar            from "./components/StatsBar.jsx";
 import { getStats }        from "./modules/spacedRepetition.js";
 import { isAudioReady }    from "./modules/audioEngine.js";
+import { buildExplanation } from "./modules/explanation.js";
 
 // How long the first-gesture unlock waits before sounding the note already on
 // screen. Only a gesture that turns out not to be an answer gets the replay.
@@ -49,7 +50,7 @@ const SOUND_LABELS = {
 };
 
 export default function App() {
-  const [showHint,  setShowHint]  = useState(true);
+  const [explanationsEnabled, setExplanationsEnabled] = useState(true);
   const [soundMode, setSoundMode] = useState('answer');
   const { play, playWrong, initFromGesture } = useAudio(soundMode !== 'off');
 
@@ -79,19 +80,24 @@ export default function App() {
     progress,
     levelUpMsg,
     budgetMs,
-    budgetExpired,
+    awaitingDismissal,
     submitAnswer,
+    advance,
     resetSession,
   } = useDrillSession({
     onNoteShown:   handleNoteShown,
     onWrongAnswer: handleWrongAnswer,
     onAnswer:      handleAnswerSound,
+    explanationsEnabled,
   });
 
-  // Hints are earned by the clock, not chosen. They stay hidden until the
-  // note's budget lapses, so every note is attempted cold, but a note that
-  // did not come automatically is scaffolded rather than left to a guess.
-  const hintVisible = showHint && budgetExpired && !feedback;
+  // The explanation only ever appears after a wrong answer (awaitingDismissal),
+  // never pre-emptively — and only when the feature is switched on.
+  const showExplanation = explanationsEnabled && awaitingDismissal;
+  const explanation = useMemo(
+    () => (showExplanation && currentNote ? buildExplanation(currentNote) : null),
+    [showExplanation, currentNote]
+  );
 
   // Wrap submitAnswer: call initFromGesture SYNCHRONOUSLY first (Safari audio unlock)
   const handleAnswer = useCallback((answer) => {
@@ -196,7 +202,7 @@ export default function App() {
       </header>
 
       <section className="staff-section">
-        <GrandStaffDisplay noteId={currentNote?.id} showLedgerCue={hintVisible} />
+        <GrandStaffDisplay noteId={currentNote?.id} showLedgerCue={showExplanation} />
       </section>
 
       <CountdownBar
@@ -206,7 +212,12 @@ export default function App() {
         active={!feedback && !!currentNote}
       />
 
-      <HintLabel note={currentNote} showHint={hintVisible} />
+      <ExplanationPanel
+        explanation={explanation}
+        visible={showExplanation}
+        onDismiss={advance}
+        onPlayNote={play}
+      />
 
       <section className="feedback-section">
         <FeedbackBanner feedback={feedback} correctNote={currentNote} />
@@ -237,8 +248,11 @@ export default function App() {
         >
           {SOUND_LABELS[soundMode]}
         </button>
-        <button className={"ctrl-btn " + (showHint ? "active" : "")} onClick={() => setShowHint(h => !h)}>
-          {showHint ? "Hints on" : "Hints off"}
+        <button
+          className={"ctrl-btn " + (explanationsEnabled ? "active" : "")}
+          onClick={() => setExplanationsEnabled(e => !e)}
+        >
+          {explanationsEnabled ? "Explanations on" : "Explanations off"}
         </button>
         <button className="ctrl-btn danger" onClick={handleReset}>Reset</button>
       </section>

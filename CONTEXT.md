@@ -20,17 +20,21 @@ src/
     NoteButtons.jsx         A–G letter buttons (fast alternative to keyboard)
     FeedbackBanner.jsx      ✓/✗/too-slow result + reaction time per answer
     CountdownBar.jsx        CSS-animated bar depleting over this note's budget
-    HintLabel.jsx           Fixed-height text hint below staff (never causes layout shift)
+    ExplanationPanel.jsx    Mistake explanation (sentence + diagram); manual dismiss only
+    ExplanationDiagram.jsx  Small VexFlow "ghost note" animation walking the count
     LevelProgress.jsx       Level N of MAX_LEVEL + new/pool fluent counts + progress bar
     StatsBar.jsx            Rolling avg reaction time + trend (↓ faster / ↑ slower)
   modules/
     noteData.js             All 52 drill items, 16 levels, CHUNKS reading patterns,
-                            staffLine() + ledgerPosition() + chunkIndex() geometry helpers
+                            staffLine() + ledgerPosition() + noteAtDiatonicPos() geometry helpers
+    explanation.js          Mistake-explanation text + step path — describeLine(),
+                            buildExplanation(), explanationText()
     spacedRepetition.js     Score engine + graduated budgets + lapse queue + rtLog
                             — persists to localStorage 'jnote_state'
     audioEngine.js          Native Web Audio API piano synth (no CDN, Safari-safe)
   hooks/
     useDrillSession.js      Core drill loop: note → answer → feedback → next note
+                            (wrong answers pause on awaitingDismissal until advance())
     useAudio.js             Wraps audioEngine, exposes play() + initFromGesture()
 scripts/
   check-curriculum.mjs      `npm run check` — curriculum + budget invariants
@@ -86,11 +90,11 @@ Two pattern members are drilled under other ids rather than repeated: `C4@treble
 
 ## Landmark notes
 
-Used by HintLabel to describe the position of **non-cross-staff** notes. Landmarks are in `noteData.js` as `isLandmark: true`. The hint text format is always single-line and nowrap.
+Used by `explanation.js` to describe the position of notes relative to a fixed reference point. Landmarks are in `noteData.js` as `isLandmark: true`.
 
 Landmark lookup is **clef-filtered**. Now that a pitch can appear on either staff, a treble-clef A3 must not be described relative to the bass-clef A3 landmark — that is a completely different place on the page.
 
-Two things landmarks no longer do: they do not affect note colour (see "Note colour"), and they are not used for cross-staff hints, which name a `CHUNKS` pattern instead. Cross-staff items are deliberately never `isLandmark` — marking `C4@bass` as one would make it the nearest landmark offered for ordinary bass notes like `B3`, describing them against an `@bass` id.
+Landmarks do not affect note colour (see "Note colour"). Cross-staff items are deliberately never `isLandmark` — marking `C4@bass` as one would make it the nearest landmark offered for ordinary bass notes like `B3`, describing them against an `@bass` id. Cross-staff notes instead get a wider reference pool of their own — see "Mistake explanations" below.
 
 | ID | Description |
 |----|-------------|
@@ -221,16 +225,24 @@ With `STAFF_Y = 70` and `HEIGHT = 400`, the vertical extremes still fit: G6 sits
 **The gap is deliberately constant for every note.** Sizing it to the note being drawn would shift the layout mid-drill *and* leak the answer — a suddenly wider staff would announce "this is a cross-staff note".
 
 ### Note colour — one blue, no landmark green
-Every quiz note is drawn in the same blue (`NOTE_COLOR`). Landmarks used to render green to mark the anchors the hints told you to count from. Nothing counts from an anchor any more, so the second colour only competed for attention with the note being read and leaked a fact about it before it had been identified. `isLandmark` stays in the data — `HintLabel` still uses it for non-cross-staff hint text — but it no longer affects rendering.
+Every quiz note is drawn in the same blue (`NOTE_COLOR`) on the main staff. `isLandmark` stays in the data and drives `explanation.js`'s mistake explanations, but it no longer affects main-staff rendering — only `ExplanationDiagram`'s small companion render uses a distinct colour for the reference note.
 
-### Hints are earned by the clock, not toggled
-`hintVisible = showHint && budgetExpired && !feedback`. `useDrillSession` arms a timer at the note's own budget and exposes `budgetExpired`, so both the text hint and the ledger colour cue stay hidden until the budget lapses. Every note is attempted cold, but a note that did not come automatically gets scaffolded rather than left to a blind guess. The "Hints" control now means auto-reveal on or never.
+### Mistake explanations (not timeout hints)
+There is no pre-answer scaffolding any more — every note is attempted cold, full stop. `ExplanationPanel` appears only after a **wrong** answer (`useDrillSession`'s `awaitingDismissal`, gated by the "Explanations on/off" control), and only disappears when manually dismissed via `advance()` (Continue button, click, or Enter/Space) — there is no auto-timeout while it's on screen.
+
+`explanation.js` builds one of two sentence forms for the missed note:
+- If the note itself is a landmark: "This is landmark note X — (precise line description)".
+- Otherwise: "Starting with landmark note X on (line), count up/down N notes", where the reference note is the nearest genuine landmark for ordinary notes, or the nearest already-introduced note (landmark **or** cross-staff sibling, same clef, level ≤ this note's level) for cross-staff notes. Chaining cross-staff notes off each other — they're taught in tight, 2-diatonic-step groups — keeps every cross-staff count to 1–2 steps instead of the 8–9 steps a genuine landmark alone would require.
+
+`describeLine()` replaces the old hand-written `LANDMARK_DESC` map with one numeric vocabulary derived straight from `staffLine()`/`ledgerPosition()`: `"treble line 2"`, `"bass space 3"`, `"1st ledger line above the treble staff"`, `"2nd ledger space below the bass staff"` — no more named shortcuts like "Middle C" or "bass top line".
+
+`ExplanationDiagram` renders the reference note plus each step out to the missed note as real VexFlow `StaveNote`s (so ledger lines draw themselves), revealing one per tick (~550ms) rather than animating in place — the same redraw-on-change pattern `GrandStaffDisplay` already uses.
 
 ### Ledger line colour cue
-Ledger lines default to grey (`#444`) and are drawn outward from the owning stave. Once the hint reveals, `showLedgerCue` tints the target note's ledger lines to match its notehead via `setLedgerLineStyle()`, which spells out staff ownership — the entire difficulty of a cross-staff note. With hints off, notation stays normal so the final drilling is honest.
+Ledger lines default to grey (`#444`) and are drawn outward from the owning stave. While a mistake explanation is on screen, `showLedgerCue` tints the missed note's ledger lines to match its notehead via `setLedgerLineStyle()`, which spells out staff ownership — the entire difficulty of a cross-staff note.
 
 ### Layout stability
-`HintLabel` renders a fixed `height: 22px` div with `white-space: nowrap` and `overflow: hidden`. It is a sibling of `.staff-section` (not inside it), so its content never affects the staff position.
+Unlike the old fixed-`22px` `HintLabel`, `ExplanationPanel` has variable height — a full sentence plus diagram and button doesn't fit on one line — so the layout can shift slightly when a mistake explanation appears. This is a deliberate trade-off: richer content needed more room than a single nowrap line could give.
 
 ### Reaction time tracking
 Timer starts in `showNextNote` (`noteStartTime = Date.now()`). RT is computed in `submitAnswer`, passed to `recordAnswer()` for the fluency gate, and stored in `_state.rtLog[]` (capped at 500). Answers slower than `WANDER_MS` (8 s) are treated as attention-wandered and excluded from `rtLog` so they don't pollute stats — they still count as answers for scoring. Only correct answers under 15s count toward stats. `getStats()` returns `{ avgMs, improvementMs }` comparing last 10 vs prior 10 correct answers.
